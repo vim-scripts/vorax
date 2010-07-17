@@ -1,0 +1,177 @@
+*vorax.txt*   Plugin for working with Oracle databases.
+              For vim version 7.x
+
+			      By Alexandru Tică
+		    alexandru.tica email-at-sign gmail.com
+
+							*vorax* *vorax-plugin*
+
+	Contents:
+	   How to install ......................... |vorax-install|
+	   Commands .............................. |vorax-commands|
+	   Mappings .............................. |vorax-mappings|
+	   Configuration .................... |vorax-configuration|
+
+VoraX aims to be a simple, yet a powerful IDE for Oracle databases. Instead of
+reinventing the wheel, VoraX relies on the well-known SqlPLUS which is
+actually used to connect to the database, to execute and to get the results
+from the target Oracle server. However, this interaction is hidden from the user 
+who just uses his/her Vim environment without knowing that, behind, an SqlPLUS
+process is doing all the work.
+
+The big advantage of this approach is that, in VoraX, almost all SqlPLUS commands 
+may be used without any problems. You can format columns, set pagination,
+autotrace queries etc. Basically, everything you used to type on your SqlPLUS
+prompt is guaranteed to work in VoraX, except maybe for some exotic cases
+(e.g. using vim in console mode, having the EDITOR set to a terminal editor
+and executing the "ed" sqlplus command).
+
+Another advantage is that you'll get an efficient Oracle IDE with a very small
+footprint. For Oracle DBAs this is huge because they don't need heavy tools
+with a lot of features they never use. Likewise, the fact that VoraX may be used 
+within a regular console makes it suitable for server environments.
+
+==============================================================================
+HOW TO INSTALL 						       *vorax-install*
+
+VoraX follows the standard procedure of installing a Vim plugin. However, you 
+need to take care of some dependencies VoraX relies on:
+
+1. your vim must have ruby support enabled. In order to check this you may
+execute :version and look for +ruby.
+2. the anlr3 gem. You may install it using:
+	gem install antlr3 -r
+2. for Windows OS, besides ruby, you'll also need the win32-api gem. You may
+install it using: 
+	gem install win32-api -r
+3. a working Oracle client with sqlplus, which has to be available in the
+environment $PATH variable. The instant client with sqlplus should be just
+fine.
+
+Please notice that just ruby 1.8 is supported for the moment therefore be
+careful not to install ruby 1.9 instead.
+
+After the installation is done it is advisable to index the documentation
+using the following commands:
+	:helptags $VIM/.vim/doc 		(Unix)
+	:helptags $VIM/vimfiles/doc 		(Windows)
+
+==============================================================================
+COMMANDS 						      *vorax-commands*
+
+VoraX defines the following commands:
+
+:VoraxConnect {connection_string}
+	-> it is used to connect to an Oracle database. The
+	{connection_string} has the same format as the one expected by a
+	regular SqlPlus tool: user/password@db. If the connection_string is
+	not provided, or an incomplete one is given (e.g. user@db) then VoraX
+	will prompt the user for all mising parts needed for connecting.
+
+:VoraxExecUnderCursor
+	-> executes the current statement where the cursor is. In order this
+	command to correctly detect this statement it is advisable to be used
+	in a sql buffer only.
+
+:VoraxExecBuffer
+	-> executes all statements from the current buffer.
+
+:VoraxExecVisualSQL
+	-> executes the current selection.
+
+:VoraxDbExplorer
+	-> opens the database explorer tree.
+
+:VoraxDescribe [object]
+	-> describes the provided database object. If no object is provided
+	the one under cursor is described.
+
+==============================================================================
+MAPPINGS 						      *vorax-mappings*
+
+The default mappings for VoraX are:
+
+<Leader>vc 	: Request a connection to the database.
+<Leader>ve 	: Executes statements (the current one or the selected ones).
+<Leader>vb 	: Executes all statements from the current buffer.
+<Leader>vv 	: Opens the database explorer tree.
+<Leader>vd 	: Describe the database object under cursor.
+
+==============================================================================
+CONFIGURATION 						 *vorax-configuration*
+
+You may customize VoraX using the following global variables:
+
+g:vorax_sqlplus_header
+	-> it is a "\n" delimited list of commands to be executed into the
+	sqlplus environment before creating a new oracle session. However, these
+	commands may be overiden by the settings from your [g]login.sql file.
+
+g:vorax_resultwin_geometry
+	-> the position and the size of the results window. The syntax is the
+	same as for split. The default value is "botright 10".
+
+g:vorax_resultwin_clear
+	-> defines whenever or not the result window to be cleared between
+	subsequent SQL execution. If 1, the result window is cleared before
+	executing another statements. Otherwise, the results from the new
+	executed statement are simply appended to the end of the already
+	existing content.
+
+g:vorax_inline_prompt
+	-> this variable defines how VoraX should ask the user for input when
+	SqlPlus requires this. For example, an sqlplus script may have ACCEPT
+	statements used to get input from the user. Because you don't interact
+	directly with SqlPlus is up to VoraX do define how to prompt for these
+	values. If g:vorax_inline_prompt is 1 then VoraX expect to receive the
+	user input directly in the result window. For this, you have to go to
+	the last line (G) and to add at the very end of it (A) your value.
+	It's the same like in SqlPlus but more picky because VoraX will
+	consider as your input just the text you enter after the very end
+	column of the prompt label. So, be careful, not to edit this last line
+	before this position. If you want a safer way of providing input you
+	can set this variable on 0. In this case when VoraX waits for input
+	you may press ENTER and you'll be requested to enter your value in the
+	vim command line area.
+
+g:vorax_dbexplorer_side
+	-> configures the placement of the database explorer tree. If 0 it
+	will be layed out on the left, if 1 on the right.
+
+g:vorax_dbexplorer_width
+	-> configures how large the width of the database explorer window
+	should be.
+
+g:vorax_dbexplorer_object_over_file
+	-> configures how DbExplorer should open a database object when a
+	file with the same name already exists within the current directory.
+	The possible values are:
+		0 = always load the source from the database
+		1 = always load the file if there is one
+		2 = ask the user
+	Setting this variable on 1 may be convinient for those who's working
+	with a source control system and, even they open the database object
+	from DbExplorer they still want to rely on the file version of that
+	source.
+
+g:vorax_dbexplorer_file_extensions
+	-> setup file extensions for every relevant object type which is
+	opened from DbExplorer. If a type is not found within this array the
+	default .sql extension will be used. This variable is a list of
+	dictionaries having the following keys:
+		"type" = the type of the database object
+		"ext"  = the corresponding file extension (without the leading
+			 dot)
+
+g:vorax_messages
+	-> this is a way of having all string messages in a central place. It
+	acts like a rude string resource. However, you may change it if you
+	don't like the already defined messages or you don't like English.
+	
+g:vorax_debug
+	->  this variable controlls whenever or not to write into a log file.
+	This feature depends on the log.vim plugin which is available on 
+	http://www.vim.org/scripts/script.php?script_id=2330 address. Pay
+	attention that this script should resie in the autoload directory.
+
+vim:ts=8 sw=8 noexpandtab tw=78 ft=help:
