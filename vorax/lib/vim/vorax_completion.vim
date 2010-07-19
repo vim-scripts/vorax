@@ -19,8 +19,15 @@ function! Vorax_Complete(findstart, base)
     let start    = col('.') - 1
     let complete_from = -1
     let s:prefix   = ""
+    let s:params = 0
+    let s:crr_statement = vorax#UnderCursorStatement()
     while start > 0
-      if line[start - 1] !~ '\w\|[$#.]'
+      if strpart(s:crr_statement[4], 0, s:crr_statement[5] - 1) =~ '[(,]\_s*$'
+        " parameters completion
+        let s:params = 1
+        break
+      endif
+      if line[start - 1] !~ '\w\|[$#.,(]'
         " If the previous character is not a period or word character
         break
       elseif line[start - 1] =~ '\w\|[$#]'
@@ -43,9 +50,14 @@ function! Vorax_Complete(findstart, base)
   else
     let result = []
     let parts = split(s:prefix, '\.')
-    if len(parts) == 0
+    ruby puts VIM::evaluate('string(parts)')
+    ruby puts VIM::evaluate('s:params')
+    if len(parts) == 0 && s:params == 0 && a:base != ""
       " completion for a local object
       let result = s:SchemaObjects("", a:base)
+    elseif s:params == 1
+      "complete procedure parameters
+      let result = s:CurrentArguments()
     elseif len(parts) == 1
       " we have a prefix which can be: an alias, an object, a schema... we can't tell
       " for sure therefore we'll try in this order
@@ -67,17 +79,18 @@ function! Vorax_Complete(findstart, base)
           " it may be a schema name
           let result = s:SchemaObjects(toupper(parts[0]), a:base)
         endif
-      elseif len(parts) == 2
-        " we can have here someting like owner.object
-        let info = s:ResolveDbObject(parts[0] . '.' . parts[1])
-        if has_key(info, 'schema') 
-          if info.type == 2 || info.type == 4
-            " complete columns
-            let result = s:Columns(info.schema, info.object, a:base)
-          elseif info.type == 9 || info.type == 13
-            " complete proc/func from the package/type
-            let result = s:Submodules(info.schema, info.object, a:base)
-          endif
+      endif
+    elseif len(parts) == 2
+      " we can have here someting like owner.object
+      let info = s:ResolveDbObject(parts[0] . '.' . parts[1])
+      ruby puts VIM::evaluate('string(info)')
+      if has_key(info, 'schema') 
+        if info.type == 2 || info.type == 4
+          " complete columns
+          let result = s:Columns(info.schema, info.object, a:base)
+        elseif info.type == 9 || info.type == 13
+          " complete proc/func from the package/type
+          let result = s:Submodules(info.schema, info.object, a:base)
         endif
       endif
     endif
@@ -85,12 +98,83 @@ function! Vorax_Complete(findstart, base)
   endif  
 endfunction
 
+" Get parameter for the given module/submodule. If module is empty then
+" the parameters for a standalone function/procedure is returned.
+function s:ParamsFor(owner, module, submodule)
+  ruby puts "owner=#{VIM::evaluate('a:owner')} module=#{VIM::evaluate('a:module')} submodule=#{VIM::evaluate('a:submodule')}"
+  if s:IsLower(a:submodule)
+    let arg = 'lower(argument_name)'
+    let type = 'lower(data_type)'
+  else
+    let arg = 'argument_name'
+    let type = 'data_type'
+  endif
+  call vorax#saveSqlplusSettings()
+  let result = vorax#Exec(vorax#safeForInternalQuery() .
+        \ "set linesize 100\n" .
+        \ "select " . arg . " || ' => ' || '::' || " . type . " || '::' || overload from all_arguments " . 
+        \ "where owner='" . a:owner . "'" .
+        \ (a:module != "" ? " and package_name ='" . a:module . "'" : "") .
+        \ " and object_name ='" . toupper(a:submodule) . "'" .
+        \ " and argument_name is not null " .
+        \ " order by overload, position;" 
+        \ , 0)
+  call vorax#restoreSqlplusSettings()
+  return result
+endfunction
+
+" Get func/proc parameters corresponding to the current position.
+function s:CurrentArguments()
+  let stmt = s:crr_statement
+  let args = []
+  let result = []
+  let on_fnc = ""
+  ruby << EOF
+    f = ArgumentResolver.arguments_for(VIM::evaluate('stmt[4]').upcase, VIM::evaluate('stmt[5]').to_i - 1)
+    VIM::command("let on_fnc = '" + f + "'") if f
+EOF
+  if on_fnc != ""
+    let fields = split(on_fnc, '\.')
+    if len(fields) == 1
+      " a procedure, or a function
+      let info = s:ResolveDbObject(fields[0])
+      if has_key(info, 'schema') || info['schema'] != "" || info['object'] != ""
+        let result = s:ParamsFor(info['schema'], '', info['object'])
+      endif
+    elseif len(fields) == 2
+      " could be a package name + procedure or an owner + procedure
+      let info = s:ResolveDbObject(fields[0])
+      if has_key(info, 'schema') || info['schema'] != "" || info['object'] != ""
+        if info['type'] == 9
+          " a package 
+          let result = s:ParamsFor(info['schema'], info['object'], toupper(fields[1]))
+        elseif info['type'] == 7 || info['type'] == 8
+          " procedure/function with owner
+          let result = s:ParamsFor(info['schema'], '', info['object'])
+        end
+      endif
+    elseif len(fields) == 3 
+      " owner + package + proc/func
+      let info = s:ResolveDbObject(fields[0] . '.' . fields[1])
+      ruby puts VIM::evaluate('string(info)')
+      if has_key(info, 'schema') || info['schema'] != "" || info['object'] != ""
+        let result = s:ParamsFor(info['schema'], info['object'], toupper(fields[2]))
+      endif
+    endif
+    for row in result
+      let fields = split(row, '::', 1)
+      call add(args, {'word' : fields[0], 'kind' : fields[1], 'dup' : 1, 'menu' : fields[2] == "" ? "" : "o" . fields[2] })
+    endfor
+  endif
+  return args
+endfunction
+
 " Get columns for the current position which might be comming from
 " an alias specified in prefix. Returns a row list of columns. Some
 " columns might be in the form of OBJECT.TABLE.*. These has to be further
 " fetched using s:ExpandColumns(cols).
 function s:ColumnsFromAlias(alias, prefix)
-  let stmt = vorax#UnderCursorStatement()
+  let stmt = s:crr_statement
   let columns = []
   ruby << EOF
     AliasResolver.columns_for(VIM::evaluate('stmt[4]').upcase, VIM::evaluate('stmt[5]').to_i - 1, VIM::evaluate('a:alias')).each do |col|
@@ -175,6 +259,7 @@ function s:ResolveDbObject(object)
         \ "   dblink varchar2(100);\n" .
         \ "   part1_type number;\n" .
         \ "   object_number number;\n" .
+        \ "   l_obj varchar2(100);\n" .
         \ "   l_skip boolean := false;\n" .
         \ "   try_ctx t_context := t_context(1, 2, 7);\n" .
         \ "   invalid_context exception;\n" .
@@ -201,7 +286,12 @@ function s:ResolveDbObject(object)
         \ "         return;\n" .
         \ "     end;\n" .
         \ "     if l_skip = false then\n" .
-        \ "       dbms_output.put_line(schema || '::' || part1 || '::' || dblink || '::' || part1_type);\n" .
+        \ "       if part1 is not null then\n" .
+        \ "          l_obj := part1;\n" .
+        \ "       elsif part1 is null and part2 is not null then\n" .
+        \ "          l_obj := part2;\n" .
+        \ "       end if;\n" .
+        \ "       dbms_output.put_line(schema || '::' || l_obj || '::' || dblink || '::' || part1_type);\n" .
         \ "       return;\n" .
         \ "     end if;\n" .
         \ "   end loop;\n" .
@@ -240,13 +330,52 @@ function s:SchemaObjects(schema, pattern)
   call vorax#saveSqlplusSettings()
   let result = vorax#Exec(vorax#safeForInternalQuery() .
         \ "set linesize 100\n" .
-        \ "select distinct ". obj . " from all_objects " . 
-        \ "where object_name like '".toupper(a:pattern)."%' and owner in (" .schema . ") " .
-        \ "and object_type in ('TABLE', 'VIEW', 'SYNONYM', 'PROCEDURE', 'FUNCTION', 'PACKAGE', 'TYPE') " .
-        \ "order by 1;"
+        \ "select distinct " . obj . " || '::' || " .
+        \ "       decode(t2.object_type, '', t1.object_type, t2.object_type) " .
+        \ "  from (select owner, object_name, object_type " .
+        \ "          from all_objects o1 " .
+        \ "         where object_name like '" . toupper(a:pattern) . "%' " .
+        \ "           and owner in (" . schema . ") " .
+        \ "           and object_type in ('TABLE', " .
+        \ "                               'VIEW', " .
+        \ "                               'SYNONYM', " .
+        \ "                               'PROCEDURE', " .
+        \ "                               'FUNCTION', " .
+        \ "                               'PACKAGE', " .
+        \ "                               'TYPE')) t1, " .
+        \ "       (select s.owner, s.synonym_name, o.object_type " .
+        \ "          from all_synonyms s, all_objects o " .
+        \ "         where s.owner in (" . schema . ") " .
+        \ "           and s.table_owner = o.owner " .
+        \ "           and s.table_name = o.object_name " .
+        \ "           and s.synonym_name like '". toupper(a:pattern) . "%') t2 " .
+        \ " where t1.owner = t2.owner(+) " .
+        \ "   and t1.object_name = t2.synonym_name(+) " .
+        \ " order by 1; "
         \ , 0)
   call vorax#restoreSqlplusSettings()
-  return result
+  let items = []
+  for row in result
+    let fields = split(row, '::')
+    let kind = ""
+    if fields[1] == 'TABLE'
+      let kind = "tbl"
+    elseif fields[1] == 'VIEW'
+      let kind = "viw"
+    elseif fields[1] == 'SYNONYM'
+      let kind = "syn"
+    elseif fields[1] == 'PROCEDURE'
+      let kind = "prc"
+    elseif fields[1] == 'FUNCTION'
+      let kind = "fnc"
+    elseif fields[1] == 'PACKAGE'
+      let kind = "pkg"
+    elseif fields[1] == 'TYPE'
+      let kind = "typ"
+    endif
+    call add(items, {'word' : fields[0], 'kind' : kind })
+  endfor
+  return items
 endfunction
 
 " Get all columns which starts with the provided pattern

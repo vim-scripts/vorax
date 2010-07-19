@@ -505,14 +505,14 @@ function! vorax#UnderCursorStatement()
   let rel_line = old_line - start_line + 1
   let rel_pos = 1
   let i = 1
-  for line in split(statement, '\n', 1)
+  let lines = split(statement, '\n', 1)
+  for line in lines
     if i == rel_line
       let rel_pos += old_col - 1
       break
     else
-      " if length is 0 then it must be an empty line which is
-      " counted as \n
-      let rel_pos += (strlen(line) == 0 ? 1 : strlen(line))
+      " we add 1 to count \n
+      let rel_pos += strlen(line) + 1
     endif
     let i += 1
   endfor

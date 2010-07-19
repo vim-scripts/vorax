@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "1.3"
+let g:loaded_vorax = "1.4"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -25,7 +25,7 @@ set cpo&vim
 " Configuration section
 """""""""""""""""""""""""""""""""""
 if !exists('g:vorax_sqlplus_header')
-  " a lf delimited list of commands to be executed into the sqlplus
+  " a cr delimited list of commands to be executed into the sqlplus
   " envirnoment before creating a new oracle session. These commands do not overide the
   " settings from the [g]login.sql file.
   let g:vorax_sqlplus_header = "set linesize 10000\n" .
@@ -135,12 +135,10 @@ endif
 
 if !exists(':VoraxExecUnderCursor')
     command! -nargs=0 VoraxExecUnderCursor :call vorax#Exec('', 1)
-    nmap <unique> <script> <Plug>VoraxExecUnderCursor :VoraxExecUnderCursor<CR>
 endif
 
 if !exists(':VoraxExecBuffer')
     command! -nargs=0 VoraxExecBuffer :call vorax#ExecBuffer()
-    nmap <unique> <script> <Plug>VoraxExecBuffer :VoraxExecBuffer<CR>
 endif
 
 if !exists(':VoraxDbExplorer')
@@ -150,39 +148,21 @@ endif
 
 if !exists(':VoraxExecVisualSQL')
     command! -nargs=0 -range VoraxExecVisualSQL :call vorax#Exec(vorax#SelectedBlock(), 1)
-    xmap <unique> <script> <Plug>VoraxExecVisualSQL :VoraxExecVisualSQL<CR>
 endif
 
 if !exists(':VoraxDescribe')
     command! -nargs=? VoraxDescribe :call vorax#Describe(<q-args>)
-    nmap <unique> <script> <Plug>VoraxDescribe :VoraxDescribe<CR>
 endif
 
 """""""""""""""""""""""""""""""""""
 " Define mappings
 """""""""""""""""""""""""""""""""""
-if !hasmapto('<Plug>VoraxExecVisualSQL') && !hasmapto('<Leader>ve', 'v')
-    xmap <unique> <Leader>ve <Plug>VoraxExecVisualSQL
-endif
-
-if !hasmapto('<Plug>VoraxExecUnderCursor') && !hasmapto('<Leader>ve', 'n')
-    nmap <unique> <Leader>ve <Plug>VoraxExecUnderCursor
-endif
-
-if !hasmapto('<Plug>VoraxExecBuffer') && !hasmapto('<Leader>vb', 'n')
-    nmap <unique> <Leader>vb <Plug>VoraxExecBuffer
-endif
-
 if !hasmapto('<Plug>VoraxConnect') && !hasmapto('<Leader>vc', 'n')
     nmap <unique> <Leader>vc <Plug>VoraxConnect
 endif
 
 if !hasmapto('<Plug>VoraxDbExplorer') && !hasmapto('<Leader>vv', 'n')
     nmap <unique> <Leader>vv <Plug>VoraxDbExplorer
-endif
-
-if !hasmapto('<Plug>VoraxDescribe') && !hasmapto('<Leader>vd', 'n')
-    nmap <unique> <Leader>vd <Plug>VoraxDescribe
 endif
 
 """""""""""""""""""""""""""""""""""
