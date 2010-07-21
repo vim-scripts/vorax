@@ -123,7 +123,7 @@ function! Vorax_DbExplorerClick(path)
       endif
       call s:FocusCandidateWindow()
       silent! exe 'edit ' . fname
-      exe 'setlocal ft=sql'
+      call vorax#InitBuffer()
       ":SQLSetType sqloracle
       if response !=? 'e'
         " clear buffer

@@ -57,9 +57,9 @@ function! VrxTree_ToggleTreeWindow(title) "{{{1
     if buf_win_nr == -1
       " not visible
       if s:settings[a:title]['vertical']
-        let splitcmd = s:settings[a:title]['minWidth'] . 'vsplit'
+        let splitcmd = (s:settings[a:title]['side'] == 0 ? 'topleft' : 'botright') . ' vertical ' . s:settings[a:title]['minWidth'].'new'
       else
-        let splitcmd = s:settings[a:title]['minHeight'] . 'split'
+        let splitcmd = (s:settings[a:title]['side'] == 0 ? 'topleft' : 'botright') . s:settings[a:title]['minWidth'].'new'
       endif
       call s:Split(splitcmd, 
                 \ a:title, 

@@ -462,7 +462,8 @@ function! vorax#UnderCursorStatement()
   while (start_line == 0)
     let result = search(';\|\/', 'beW')
     if result
-      if synIDattr(synIDtrans(synID(line("."), col("."), 1)), "name") == ""
+      let syn = synIDattr(synIDtrans(synID(line("."), col("."), 1)), "name")  
+      if syn != "Constant" && syn != 'Comment'
         " if the delimitator is not within quotes or comments
         normal l
         let start_line = line('.')
@@ -478,7 +479,8 @@ function! vorax#UnderCursorStatement()
   while (stop_line == 0)
     let result = search(';\|\/', 'Wc')
     if result
-      if synIDattr(synIDtrans(synID(line("."), col("."), 1)), "name") == ""
+      let syn = synIDattr(synIDtrans(synID(line("."), col("."), 1)), "name")  
+      if syn != "Constant" && syn != "Comment"
         " if the delimitator is not within quotes or comments
         let stop_line = line('.')
         let stop_col = col('.')
@@ -491,6 +493,7 @@ function! vorax#UnderCursorStatement()
       let stop_col = col('.') 
     endif
   endwhile
+  echo 'a iesit si din al 2lea loop'
   " extract the actual statement
   let statement = ""
   for line in getline(start_line, stop_line)
@@ -609,7 +612,7 @@ endfunction
 
 " execute the current buffer
 function! vorax#ExecBuffer()
-  if &ft == 'sql'
+  if &ft == 'sql' || &ft == 'plsql'
     let content = s:BufferContent()
     let content .= s:Delimitator(content)
     " go to the beginning of the buffer. This is importat,
@@ -870,16 +873,59 @@ function! vorax#Describe(object)
   call append(line('$'), result)
 endfunction
 
+" Returns 1 if the provided filename is a vorax managed one,
+" 0 otherwise. A file is considered vorax managed if its
+" extension is within g:vorax_db_explorer_file_extensions or
+" is 'sql'
+function vorax#Managed(file)
+  let ext = fnamemodify(a:file, ':e')
+  for item in g:vorax_dbexplorer_file_extensions
+    if ext ==? item.ext || ext ==? 'sql'
+      return 1
+    endif
+  endfor
+  return 0
+endfunction
+
 " Initialize a VoraX buffer
 function vorax#InitBuffer()
-  let bufext = fnamemodify(bufname('%'), ':e')
-  echo bufext
+  let ext = fnamemodify(bufname('%'), ':e')
+  let type = ""
   for item in g:vorax_dbexplorer_file_extensions
-    if bufext =~? item.ext || bufext == 'sql'
-      " init code completion
-      exe 'set ft=sql'
-      setlocal omnifunc=Vorax_Complete
+    if item.ext ==? ext
+      let type = item.type
       break
     endif
   endfor
+  if type == 'PACKAGE' || type == 'PACKAGE_SPEC' || type == 'PACKAGE_BODY' ||
+    \ type == 'FUNCTION' || type == 'PROCEDURE' || type == 'TYPE' ||
+    \ type == 'TYPE_SPEC' || type == 'TYPE_BODY' || type == 'TRIGGER'
+    " set as plsql file
+    exe 'set ft=plsql'
+  elseif (type == "" && ext ==? 'sql') || type != ""
+    " set as an sql file if the file has the sql extenssion or
+    " a the ext is within the registered ones.
+    exe 'set ft=sql'
+  endif
+endfunction
+
+" Create the mappings for a vorax buffer.
+function vorax#CreateBufferMappings()
+  " defines vorax mappings for the current buffer
+  if mapcheck('<Leader>ve', 'n') == ""
+    nmap <buffer> <unique> <Leader>ve :VoraxExecUnderCursor<cr>
+  endif
+
+  if mapcheck('<Leader>ve', 'v') == ""
+    xmap <buffer> <unique> <Leader>ve :VoraxExecVisualSQL<cr>
+  endif
+
+  if mapcheck('<Leader>vb', 'n') == ""
+    nmap <buffer> <unique> <Leader>vb :VoraxExecBuffer<cr>
+  endif
+
+  if mapcheck('<Leader>vd', 'n') == ""
+    nmap <buffer> <unique> <Leader>vd :VoraxDescribe<cr>
+  endif
+
 endfunction

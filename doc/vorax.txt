@@ -11,6 +11,7 @@
 	   Commands .............................. |vorax-commands|
 	   Mappings .............................. |vorax-mappings|
 	   Configuration .................... |vorax-configuration|
+	   Integration ........................ |vorax-integration|
 
 VoraX aims to be a simple, yet a powerful IDE for Oracle databases. Instead of
 reinventing the wheel, VoraX relies on the well-known SqlPLUS which is
@@ -173,5 +174,26 @@ g:vorax_debug
 	This feature depends on the log.vim plugin which is available on 
 	http://www.vim.org/scripts/script.php?script_id=2330 address. Pay
 	attention that this script should resie in the autoload directory.
+
+==============================================================================
+INTEGRATION 						    *vorax-integration*
+
+VoraX integrates with NERDTree plugin. It creates a key map in order to
+execute an sql file directly from the NERDTree explorer. Select the file you
+want to execute and press '@' key. This key works only for those files which
+have the '.sql' extension or an extension specified in
+g:vorax_db_explorer_file_extenstions.
+
+NERDTree plugin is available at: 
+http://www.vim.org/scripts/script.php?script_id=1658
+
+The second plugin which may be used nicely together with VoraX is XpTemplates.
+VoraX defines some useful snippets for faster sql/plsql editing. I chosen
+XpTemplates over snipMate because it integrates better with SuperTab plugin.
+However, pay attention that using both, XpTemplates and SnipMate, may cause
+problems.
+
+XpTemplates plugin is available at:
+http://www.vim.org/scripts/script.php?script_id=2611
 
 vim:ts=8 sw=8 noexpandtab tw=78 ft=help:

@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "1.4"
+let g:loaded_vorax = "1.5"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -88,6 +88,8 @@ if !exists('g:vorax_dbexplorer_file_extensions')
                                         \     {'type' : 'PACKAGE_SPEC', 'ext' : 'spc'} ,
                                         \     {'type' : 'PACKAGE_BODY', 'ext' : 'bdy'} ,
                                         \     {'type' : 'FUNCTION', 'ext' : 'fnc'} ,
+                                        \     {'type' : 'PROCEDURE', 'ext' : 'prc'} ,
+                                        \     {'type' : 'TRIGGER', 'ext' : 'trg'} ,
                                         \     {'type' : 'TYPE', 'ext' : 'typ'} ,
                                         \     {'type' : 'TYPE_SPEC', 'ext' : 'tps'} ,
                                         \     {'type' : 'TYPE_BODY', 'ext' : 'tpb'} ,
@@ -112,6 +114,8 @@ if !exists('g:vorax_messages')
                         \  "unexpected_error"                 : "An error has occured... please check the logs.",
                         \  "not_connected"                    : "Not connected to Oracle!",
                         \  "wrong_buffer"                     : "Cannot execute this type of buffer!",
+                        \  "wrong_file"                       : "Vorax cannot execute this type of file!",
+                        \  "dir_not_allowed"                  : "Vorax cannot execute a directory.",
                         \  "dbexpl_edit_file_confirmation"    : "There is a [{#}] file in the current directory. If you just want to load " .
                         \                                       "the source for the database press ENTER, otherwise enter {#} to edit: " ,
                         \}
