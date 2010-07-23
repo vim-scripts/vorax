@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "1.5"
+let g:loaded_vorax = "1.6"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -152,6 +152,10 @@ endif
 
 if !exists(':VoraxExecVisualSQL')
     command! -nargs=0 -range VoraxExecVisualSQL :call vorax#Exec(vorax#SelectedBlock(), 1)
+endif
+
+if !exists(':VoraxDescribeVisual')
+    command! -nargs=0 -range VoraxDescribeVisual :call vorax#Describe(vorax#SelectedBlock())
 endif
 
 if !exists(':VoraxDescribe')

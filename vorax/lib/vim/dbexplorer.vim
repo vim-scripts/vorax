@@ -16,6 +16,7 @@ function! Vorax_DbExplorerInit()
   let b:VrxTree_IsLeafFunction = 'Vorax_DbExplorerIsLeaf'
   let b:VrxTree_ColorFunction="Vorax_InitColors"  
   let b:VrxTree_OnLeafClick="Vorax_DbExplorerClick"
+  let b:VrxTree_InitMappingsFunction="Vorax_InitMappings"
   setlocal foldcolumn=0
   setlocal winfixwidth
   setlocal buftype=nofile
@@ -26,6 +27,12 @@ function! Vorax_DbExplorerInit()
   setlocal noswapfile
 endfunction
 
+" Configures some key mappings
+function! Vorax_InitMappings()
+	noremap <silent> <buffer> o :call VrxTree_OpenNode()<CR>
+	noremap <silent> <buffer> R :call VrxTree_RefreshNode()<CR>
+endfunction
+
 " Get the nodes corresponding to the provided path
 function! Vorax_DbExplorerGetNodes(path)
   if a:path == "" || a:path == "@"
@@ -33,22 +40,27 @@ function! Vorax_DbExplorerGetNodes(path)
     return ""
   endif
   if a:path == &titlestring
-    let categories = "Tables\n" .
-                  \  "Views\n" . 
-                  \  "Procedures\n" .
-                  \  "Functions\n" . 
-                  \  "Packages\n" .
-                  \  "Synonyms\n" .
-                  \  "Types\n" .
-                  \  "Triggers\n" .
-                  \  "Sequences\n" 
-    return categories
-  elseif a:path =~ '^/\?[^/]\+/[^/]\+$'
-    " a generic category
-    let category = s:ObjectType(a:path)
+    return s:GenericCategories(1)
+  elseif a:path =~ '^/\?[^/]\+/Users$'
     call vorax#saveSqlplusSettings()
     let result = vorax#Exec(vorax#safeForInternalQuery() .
-                          \ "select object_name from user_objects where object_type = '" . category . "' order by 1;"
+                          \ "select username from all_users order by 1;"
+                          \ , 0)
+    call vorax#restoreSqlplusSettings()
+    return join(result, "\n")
+  elseif a:path =~ '^/\?[^/]\+/Users/[^/]\+$'
+    return s:GenericCategories(0)
+  elseif a:path =~ '^/\?[^/]\+/[^/]\+$' || a:path =~ '^/\?[^/]\+/Users/[^/]\+/[^/]\+$'
+    " a generic category under the current user or another one
+    let category = s:ObjectType(a:path)
+    let user = 'user'
+    let parts = split(a:path, b:VrxTree_pathSeparator)
+    if len(parts) == 4
+      let user = "'" . parts[-2] . "'"
+    endif
+    call vorax#saveSqlplusSettings()
+    let result = vorax#Exec(vorax#safeForInternalQuery() .
+                          \ "select object_name from all_objects where owner = " . user . " and object_type = '" . category . "' order by 1;"
                           \ , 0)
     call vorax#restoreSqlplusSettings()
     return join(result, "\n")
@@ -66,11 +78,35 @@ function! Vorax_DbExplorerGetNodes(path)
   endif
 endfunction
 
+" Return the generic categories for the DbExplorer tree.
+" If a:include_users is 1 then the USERS generic node is
+" also returned. Basically, include_users should be 1 if
+" the current user is expanded and 0 if object belonging to
+" others are browsed.
+function s:GenericCategories(include_users)
+  let categories = "Tables\n" .
+        \  "Views\n" . 
+        \  "Procedures\n" .
+        \  "Functions\n" . 
+        \  "Packages\n" .
+        \  "Synonyms\n" .
+        \  "Types\n" .
+        \  "Triggers\n" .
+        \  "Sequences\n" 
+  if a:include_users
+    let categories .= "Users\n" 
+  endif
+  return categories
+endfunction
+
 " Does the provided node has children?
 function! Vorax_DbExplorerIsLeaf(path)
-  if a:path =~ '^/\?[^/]\+/[^/]\+/'
-    " if here, it's a db object node
-    if a:path =~ '^/\?[^/]\+/Packages/[^/]\+$'
+  let parts = split(a:path, b:VrxTree_pathSeparator)
+  if type(parts) == 3 && len(parts) >= 3
+    if (len(parts) == 3 && parts[-2] == 'Packages') 
+        \ || (parts[-1] == 'Users' && len(parts) == 2) 
+        \ || (len(parts) == 3 && parts[-2] == 'Users')
+        \ || (len(parts) == 4 && parts[1] == 'Users')
       " the package has spec and body
       return 0
     else
@@ -92,6 +128,10 @@ function! Vorax_DbExplorerClick(path)
   echon 'Loading ' . object_name . '. Please wait...'
   if a:path =~ '^/\?[^/]\+/[^/]\+/'
     let type = s:ObjectType(a:path)
+    let user = 'user'
+    if a:path =~ '^/\?[^/]\+/Users'
+      let user = "'" . split(a:path, b:VrxTree_pathSeparator)[2] . "'"
+    endif 
     if a:path =~ '^/\?[^/]\+/Packages'
       if subtype == 'Spec'
         let type = 'PACKAGE_SPEC'
@@ -129,7 +169,7 @@ function! Vorax_DbExplorerClick(path)
         " clear buffer
         normal ggdG
         " get source
-        let result = s:GetSource(type, object_name)
+        let result = s:GetSource(type, object_name, user)
         call append(0, result)
         " delete the leading blanks from the first line... the dbms_metadata.getddl
         " puts some blanks before the CREATE statement
@@ -213,11 +253,18 @@ endfunction
 
 " Get the object type for the provided path.
 function s:ObjectType(path)
-    let type = split(a:path, b:VrxTree_pathSeparator)[1]
-    " get rid of the final 's'
-    let type = strpart(type, -1, strlen(type))
-    let type = toupper(type)
-    return type
+  let parts = split(a:path, b:VrxTree_pathSeparator)
+  if len(parts) >= 2 && parts[1] != 'Users'
+    " under the user tree
+    let type = parts[1]
+  else
+    " under the other users tree
+    let type = parts[3]
+  endif
+  " get rid of the final 's'
+  let type = strpart(type, -1, strlen(type))
+  let type = toupper(type)
+  return type
 endfunction
 
 " Get the object name corresponding to the provide path
@@ -226,7 +273,7 @@ function s:ObjectName(path)
 endfunction
 
 " Get the source for the provided proc/func/package
-function s:GetSource(type, object_name)
+function s:GetSource(type, object_name, schema)
   let type = a:type
   let object_name = a:object_name
   let result = []
@@ -236,7 +283,7 @@ function s:GetSource(type, object_name)
         \ "set wrap on\n" .
         \ "exec dbms_metadata.set_transform_param( DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', TRUE );\n" .
         \ "exec dbms_metadata.set_transform_param( DBMS_METADATA.SESSION_TRANSFORM, 'BODY', TRUE );\n" .
-        \ "select dbms_metadata.get_ddl('" . type . "', '" . object_name . "') from dual;"
+        \ "select dbms_metadata.get_ddl('" . type . "', '" . object_name . "', " . a:schema . ") from dual;"
         \ , 0)
   call vorax#restoreSqlplusSettings()
   " remove empty lines from the begin/end

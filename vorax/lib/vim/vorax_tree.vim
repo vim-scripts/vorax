@@ -36,6 +36,20 @@ function! VrxTree_NewTreeWindow (initialPath, title, vertical, side, minWidth, m
   call s:BuildTree(a:initialPath)
 endfunction "}}}1
 
+function! VrxTree_OpenNode()
+  call s:OnDoubleClick()
+endfunction
+
+function! VrxTree_RefreshNode()
+  let node = VrxTree_GetPathUnderCursor()
+	let xpos=col ('.')-1
+	let ypos=line ('.')
+  if !s:IsLeaf(node) && getline (ypos)[xpos] == '-'
+    call s:TreeNodeAction (xpos,ypos)
+    call s:TreeNodeAction (xpos,ypos)
+  endif
+endfunction
+
 function! VrxTree_GetSettings(title)
   if has_key(s:settings, a:title)
     return s:settings[a:title]
@@ -145,7 +159,6 @@ function! s:InitMappings () "{{{1
 	noremap <silent> <buffer> <S-Down> :call <SID>GotoNextNode ()<CR>
 	noremap <silent> <buffer> <S-Up> :call <SID>GotoPrevNode ()<CR>
 	noremap <silent> <buffer> <BS> :call <SID>BuildParentTree ()<CR>
-	noremap <silent> <buffer> q :call <SID>CloseExplorer ()<CR>
 endfunction "}}}1
 
 function! s:InitOptions () "{{{1

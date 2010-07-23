@@ -11,6 +11,7 @@
 	   Commands .............................. |vorax-commands|
 	   Mappings .............................. |vorax-mappings|
 	   Configuration .................... |vorax-configuration|
+	   Using DbExplorer .................... |vorax-dbexplorer|
 	   Integration ........................ |vorax-integration|
 
 VoraX aims to be a simple, yet a powerful IDE for Oracle databases. Instead of
@@ -86,6 +87,9 @@ VoraX defines the following commands:
 :VoraxDescribe [object]
 	-> describes the provided database object. If no object is provided
 	the one under cursor is described.
+
+:VoraxDescribeVisual
+	-> describes the visual selected database object.
 
 ==============================================================================
 MAPPINGS 						      *vorax-mappings*
@@ -174,6 +178,14 @@ g:vorax_debug
 	This feature depends on the log.vim plugin which is available on 
 	http://www.vim.org/scripts/script.php?script_id=2330 address. Pay
 	attention that this script should resie in the autoload directory.
+
+==============================================================================
+USING DBEXPLORER 					     *vorax-dbexplorer*
+
+The DbExplorer may be used to browse database objects and to view/edit their
+definitions. To move through nodes use the standard vim navigation keys. To
+open a node you may press ENTER or the "o" key. To refresh a node you may
+use the "R" key.
 
 ==============================================================================
 INTEGRATION 						    *vorax-integration*

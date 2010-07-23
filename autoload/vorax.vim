@@ -493,7 +493,6 @@ function! vorax#UnderCursorStatement()
       let stop_col = col('.') 
     endif
   endwhile
-  echo 'a iesit si din al 2lea loop'
   " extract the actual statement
   let statement = ""
   for line in getline(start_line, stop_line)
@@ -926,6 +925,10 @@ function vorax#CreateBufferMappings()
 
   if mapcheck('<Leader>vd', 'n') == ""
     nmap <buffer> <unique> <Leader>vd :VoraxDescribe<cr>
+  endif
+
+  if mapcheck('<Leader>vd', 'v') == ""
+    xmap <buffer> <unique> <Leader>vd :VoraxDescribeVisual<cr>
   endif
 
 endfunction
