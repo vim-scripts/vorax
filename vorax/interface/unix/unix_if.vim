@@ -30,15 +30,18 @@ if has('unix')
   function s:interface.startup() dict
     " startup the interface
     let self.last_error = ""
-    ruby $io = UnixPIO.new("sqlplus -L -S /nolog") rescue VIM::command("let self.last_error='" + $!.message.gsub(/'/, "''") + "'")
-    " disable echo for all sent data
-    call s:interface.send(s:interface.pack("host stty -echo"))
+    let content = "host stty -echo\n"
+    let content .= "\nprompt " . s:end_marker . "\n"
+    let execcmd = self.pack(content)
+    ruby $io = UnixPIO.new("sqlplus /nolog " + VIM::evaluate('execcmd')) rescue VIM::command("let self.last_error='" + $!.message.gsub(/'/, "''") + "'")
+    " output is expected
+    let self.more = 1
     " we don't want the above commands to be shown therefore
     " just consume the current output
-    if s:interface.more && s:interface.last_error == ""
+    if self.last_error == ""
       while 1
-        call s:interface.read()
-        if !s:interface.more
+        call self.read()
+        if !self.more
           break
         endif
         sleep 50m
@@ -76,12 +79,13 @@ if has('unix')
       begin
         if buffer = $io.read
           end_marker = VIM::evaluate('s:end_marker')
+          end_pattern = Regexp.new(end_marker + '$')
           lines = buffer.gsub(/\r/, '').split(/\n/)
           lines.map do |line| 
             if VIM::evaluate('self.truncated') == 1
               last_line = VIM::evaluate('s:last_line') + line
             end
-            if last_line == end_marker || line == end_marker
+            if end_pattern.match(last_line) || end_pattern.match(line)
               VIM::command('let self.more = 0')
               break
             else
@@ -108,13 +112,16 @@ EOF
     let dbcommand = substitute(a:command, '\_s*\_$', '', 'g')
     " now, embed our command
     let content = dbcommand . "\n"
-    " add the end marker
-    let content .= "prompt " . s:end_marker . "\n"
     " write everything into a nice sql file
     call writefile(split(content, '\n'), s:temp_in) 
     return '@' . s:temp_in
   endfunction
   
+  function s:interface.finalize() dict
+    " add the end marker
+    call self.send("\nprompt " . s:end_marker . "\n")
+  endfunction
+
   function s:interface.shutdown() dict
     " shutdown the interface
     ruby Process.kill(9, $io.pid) if $io

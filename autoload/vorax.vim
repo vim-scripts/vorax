@@ -50,6 +50,13 @@ let s:db_explorer_title = 'Vorax-DbExplorer'
 " A temporary file to save to/restore from sqlplus settings
 let s:temp_settings_file = fnamemodify(tempname(), ':p:h') . '/vrx_settings.sql'
 
+" The log file name.
+let s:log_file = substitute(
+  \ fnamemodify(
+            \ (exists('g:vorax_logging_dir') ? g:vorax_logging_dir : expand('$HOME')) . '/vorax_' . localtime() . '_' . getpid() . '.log',
+            \ ':p:8'), 
+  \ '\', '/', 'g')
+
 " Enable logging
 if g:vorax_debug
   silent! call log#init('ALL', ['~/vorax.log'])
@@ -183,7 +190,7 @@ endfunction
 " the results has to be displayed. Basically, this function
 " opens/focuses the results window and register the monitor
 " which will further populate it.
-function! s:ShowResults()
+function! s:ShowResults(monitor)
   silent! call s:log.trace('start of s:ShowResults')
   call s:FocusResultsWindow()
   " clear the result window?
@@ -201,6 +208,7 @@ function! s:ShowResults()
   setlocal nospell
   setlocal nonu
   setlocal cursorline
+  noremap <buffer> L :call vorax#ToggleLogging()<cr>
   " highlight errors
   match ErrorMsg /^\(ORA-\|SP-\).*/
   redraw
@@ -209,8 +217,18 @@ function! s:ShowResults()
   else
     echo g:vorax_messages['executing'] . ' ' .g:vorax_messages['how_to_prompt']
   endif
-  call s:StartMonitor()
+  if a:monitor
+    call s:StartMonitor()
+  endif
   silent! call s:log.trace('end of s:ShowResults')
+endfunction
+
+function vorax#ToggleLogging()
+  if g:vorax_logging
+    call s:StopLogging()
+  else
+    call s:StartLogging()
+  endif
 endfunction
 
 " This function is used to get input from the user. Most
@@ -293,6 +311,8 @@ function! s:StopMonitor()
   call s:FocusResultsWindow()
   mapclear <buffer>
   imapclear <buffer>
+  " still, the logging key should be in place
+  noremap <buffer> L :call vorax#ToggleLogging()<cr>
   au VoraX CursorHold <buffer> call vorax#fetchResults()
   autocmd! VoraX CursorHold <buffer>
 endfunction
@@ -339,11 +359,18 @@ function! vorax#fetchResults()
       " with the current one
       let s:last_line = getline('$') .result[0]
       call setline(line('$'), s:last_line)
+      call s:LogStuff(result[0] . "\n")
       call remove(result, 0)
+    else
+      call s:LogStuff("\n")
     endif
     if len(result) > 0
       call append(line('$'), result)
       let s:last_line = result[-1]
+      " log the result
+      if g:vorax_logging
+        call s:LogStuff(join(result, "\n"))
+      endif
     endif
     let s:last_truncated = s:interface.truncated
     normal G
@@ -357,14 +384,8 @@ function! vorax#fetchResults()
     " maybe a connect statement was issued which means the connected user@db
     " could be different... just in case, set the title
     call s:SetTitle()
-    " check if we have a valid connection
-    if &titlestring == '@' || &titlestring == ""
-      " upsy, not connected
-      let s:connected = 0
-    else
-      " well one, we're stil connected
-      let s:connected = 1
-    endif
+    " flush log
+    call s:FlushLog()
     " rebuild vorax db explorer
     call s:RebuildDbExplorer()
     call s:ShowErrors()
@@ -384,6 +405,18 @@ function! vorax#fetchResults()
     " this is an workaround to automatically simulate a key stroke and, as such,
     " to trigger the CursorHold autocommand
     call feedkeys("f\e")  
+  endif
+endfunction
+
+" Flushes the log buffer.
+function s:FlushLog()
+  if g:vorax_logging
+    ruby <<EOF
+    begin
+      $log.flush if defined?($log)
+    rescue 
+    end
+EOF
   endif
 endfunction
 
@@ -417,22 +450,23 @@ endfunction
 " VoraxConnect vim command.
 function! s:SetTitle()
   silent! call s:log.trace('start of s:SetTitle')
-  let result = []
-  " we don't use vorax#Exec here because that function checks if
-  " the user is connected and this is decided according to the
-  " current title.
-  call s:interface.send(s:interface.pack("prompt &_USER@&_CONNECT_IDENTIFIER"))
-  if s:interface.last_error == ""
-    let result = s:ReadAll()
-    " set the title
-    if len(result) > 0
-      silent! exec s:log.debug('set title to: ' . result[0])
-      let &titlestring = result[0]
-    endif
+  let result = s:InternalExec("prompt &_USER@&_CONNECT_IDENTIFIER")
+  " set the title
+  if len(result) > 0
+    silent! exec s:log.debug('set title to: ' . result[0])
+    let &titlestring = result[0]
   else
     " an error has occured
     silent! exec s:log.error(s:interface.last_error)
     let &titlestring = '@'
+  endif
+  " check if we have a valid connection
+  if &titlestring == '@' || &titlestring == ""
+    " upsy, not connected
+    let s:connected = 0
+  else
+    " well one, we're stil connected
+    let s:connected = 1
   endif
   silent! call s:log.trace('end of s:SetTitle')
 endfunction
@@ -525,6 +559,40 @@ function! vorax#UnderCursorStatement()
   return retval
 endfunction
 
+" This function is used internally to silently execute a query.
+function s:InternalExec(cmd)
+  let result = []
+  " save current sqlplus settings and prepare sqlplus for a silent exec
+  call s:interface.send(s:interface.pack('store set ' . s:temp_settings_file . " replace\n" .
+        \  "set echo off\n" .
+        \  "set feedback off\n" .
+        \  "set autotrace off\n" .
+        \  "set pagesize 9999\n" .
+        \  "set heading off\n" .
+        \  "set linesize 10000\n" .
+        \  "set emb on pages 0 newp none\n"))
+  call s:interface.finalize()
+  if s:interface.last_error == ""
+    " if no errors then consume the output
+    call s:ReadAll()
+    " send the command to the interface
+    call s:interface.send(s:interface.pack(a:cmd))
+    call s:interface.finalize()
+    if s:interface.last_error == ""
+      " if no errors then read the output
+      let result = s:ReadAll()
+      " restore the previous saved settings
+      call s:interface.send('@' . s:temp_settings_file)
+      call s:interface.finalize()
+      if s:interface.last_error == ""
+        " if no errors then consume the output
+        call s:ReadAll()
+      endif
+    endif
+  endif
+  return result
+endfunction
+
 " Executes the provided sql command. If a:show is 1 then the output
 " is displayed within the results window. If a:show is 0 then nothing is
 " displayed but the result is returned as an array of lines. The big
@@ -558,15 +626,22 @@ function! vorax#Exec(cmd, show)
       " add the delimitator
       let dbcommand = dbcommand . s:Delimitator(dbcommand) . "\n"
       " executes the sql file
-      call s:interface.send(s:interface.pack(dbcommand))
+      if a:show
+        if g:vorax_logging
+          " to have executed statements sepparated by a new line
+          call s:LogStuff("\n")
+        endif
+        call s:interface.send(s:interface.pack(dbcommand))
+        call s:interface.finalize()
+      else
+        return s:InternalExec(dbcommand)
+      endif
       if s:interface.last_error == ""
         if a:show
           let s:processed_plsql_objects = s:ModulesInfo(dbcommand)
           let s:exec_from_buffer = bufnr('%')
           " display results asynchronically
-          call s:ShowResults()
-        else
-          let result = s:ReadAll()
+          call s:ShowResults(1)
         endif
       else
         silent! call s:log.error(s:interface.last_error)
@@ -624,6 +699,83 @@ function! vorax#ExecBuffer()
   endif
 endfunction
 
+" Write the provided line into the log
+function s:LogStuff(line)
+  let defined = 0
+  ruby <<EOF
+    if defined?($log)
+      VIM::command('let defined = 1')
+    end
+EOF
+  if g:vorax_logging
+    if !defined
+      call s:StartLogging()
+    endif
+    " write output line by line
+    ruby <<EOF
+      $log.print(VIM::evaluate('a:line'))
+EOF
+  endif
+endfunction
+
+" Starts the logging feature for the result window.
+function s:StartLogging()
+  let error = ""
+  ruby <<EOF
+    $log = File.new(VIM::evaluate('s:log_file'), 'a') rescue VIM::command("let error='" + $!.message.gsub(/'/, "''") + "'")
+EOF
+  if error == ""
+    let g:vorax_logging = 1
+    redraw
+    echo vorax#translate(g:vorax_messages['start_log'], s:log_file)
+  else
+    call s:EchoErr(vorax#translate(g:vorax_messages['error_log'], error))
+  endif
+endfunction
+
+" Stops the logging for the result window
+function s:StopLogging()
+  let error = ""
+  ruby <<EOF
+    if defined?($log)
+      $log.close rescue VIM::command("let error='" + $!.message.gsub(/'/, "''") + "'")
+    end
+EOF
+  if error == ""
+    let g:vorax_logging = 0
+    redraw
+    echo vorax#translate(g:vorax_messages['stop_log'])
+  else
+    call s:EchoErr(error)
+  endif
+endfunction
+
+" Spit the provided output into the result window.
+function s:SpitOutput(output)
+  " spit the output into the result window
+  call s:ShowResults(0)
+  " clear the result window?
+  if g:vorax_resultwin_clear
+    normal ggdG
+    let index = 0
+  else
+    let index = line('$')
+  endif
+  normal G$
+  call append(index, a:output)
+  " if logging enabled then log
+  if g:vorax_logging
+    " an empty line just to nicely separate consequent execs
+    call s:LogStuff("\n")
+    " log content
+    for line in a:output
+      call s:LogStuff(line . "\n")
+    endfor
+    " flush log
+    call s:FlushLog()
+  endif
+endfunction
+
 " Connects to the provided database using the cstr
 " connection string. The cstr has the common sqlplus
 " format user/password@db [as sys(dba|asm|oper). It also
@@ -640,6 +792,8 @@ function! vorax#Connect(cstr)
   else
     let connect_cmd .= "@" . s:cdata['db']
   endif
+  redraw
+  echo vorax#translate(g:vorax_messages['connecting'], connect_cmd)
   call s:interface.startup()
   " defines the _O_VERSION sqlplus variable. this is needed
   " because in case the autentication fails this variable
@@ -649,38 +803,61 @@ function! vorax#Connect(cstr)
   let all_cmd .= "define _O_VERSION='not connected.'\n"
   " add the actual connect statement
   let all_cmd .= connect_cmd . "\n"
+  " show information about the target database to which the user
+  " connected to
+  let all_cmd .= "prompt &_O_VERSION\n"
   " add commands to initialize/set the sqlplus environment.
   let cmds = split(g:vorax_sqlplus_header, '\n')
   for cmd in cmds
     let all_cmd .= cmd . "\n"
   endfor
-  " show information about the target database to which the user
-  " connected to
-  let all_cmd .= "prompt &_O_VERSION\n"
-  " execute statements
-  call s:interface.send(s:interface.pack(all_cmd))
-  " send the password. It was not included into the connect
-  " statement for security reasons. Pack function provided
-  " by the interface usually writes everything into a temp
-  " sql file and we don't want sensitive info stored anywhere.
-  call s:interface.send(s:cdata['passwd'])
-  call s:ShowResults()
+  " save current sqlplus settings and prepare sqlplus for a silent exec
+  call s:interface.send(s:interface.pack('store set ' . s:temp_settings_file . " replace\n" .
+        \  "set echo off\n" .
+        \  "set feedback off\n" .
+        \  "set autotrace off\n" .
+        \  "set pagesize 9999\n" .
+        \  "set heading off\n" .
+        \  "set linesize 200\n"))
+  call s:interface.finalize()
+  if s:interface.last_error == ""
+    " if no errors then consume the output
+    call s:ReadAll()
+    " send the command to the interface
+    call s:interface.send(s:interface.pack(all_cmd))
+    " send the password. It was not included into the connect
+    " statement for security reasons. Pack function provided
+    " by the interface usually writes everything into a temp
+    " sql file and we don't want sensitive info stored anywhere.
+    call s:interface.send(s:cdata['passwd'])
+    call s:interface.finalize()
+    if s:interface.last_error == ""
+      " if no errors then read the output
+      let result = s:ReadAll()
+      " spit the output into the result window
+      call s:SpitOutput(result)
+      " restore the previous saved settings
+      call s:interface.send('@' . s:temp_settings_file)
+      " execute header
+      let all_cmd = ""
+      let cmds = split(g:vorax_sqlplus_header, '\n')
+      for cmd in cmds
+        let all_cmd .= cmd . "\n"
+      endfor
+      call s:interface.send(s:interface.pack(all_cmd))
+      call s:interface.finalize()
+      if s:interface.last_error == ""
+        " if no errors then consume the output
+        call s:ReadAll()
+      endif
+    endif
+  endif
+  call s:SetTitle()
+  redraw
+  echo g:vorax_messages['done']
   " registers an autocommand to shutdown the interface when vim exits
   autocmd VoraX VimLeave * call vorax#Disconnect()
   silent! call s:log.trace('end of vorax#Connect(cstr)')
-endfunction
-
-" Save the current sqlplus settings. This may be used before using
-" internal queries which must change the sqlplus environment (e.g.
-" SET HEAD OFF) in order to be able to restore them at the end of
-" the query.
-function! vorax#saveSqlplusSettings()
-  call vorax#Exec('store set ' . s:temp_settings_file . ' replace', 0)
-endfunction
-
-" Restore a previous saved sqlplus environment.
-function! vorax#restoreSqlplusSettings()
-  call vorax#Exec('@' . s:temp_settings_file, 0)
 endfunction
 
 " Opens the db explorer window
@@ -760,11 +937,7 @@ function! s:ShowErrors()
                   \ "from all_errors " .
                   \ "where owner || '.' || name || '.' || type in " . in_clause .
                   \ " order by line, position "
-    call vorax#saveSqlplusSettings()
-    let result = vorax#Exec(vorax#safeForInternalQuery() .
-                          \ query . ";\n"
-                          \ , 0)
-    call vorax#restoreSqlplusSettings()
+    let result = vorax#Exec(query . ";\n", 0)
     let qerr = []
     for error in result
       let parts = split(error, '-->')
@@ -829,27 +1002,11 @@ function! vorax#translate(rs, ...)
   return str
 endfunction
 
-" This function returns the sqlplus commands which should be executed
-" before running an internal VoraX query (e.g. dbexplorer, code completion etc.).
-" This is needed because the sqlplus connection is shared between the user and
-" the internal components of VoraX. Therefore, if the user configures for
-" example an autotrace that will not be suitable for VoraX future internal
-" queries. That means that several options must be always set before trying to
-" get anything from sqlplus.
-function! vorax#safeForInternalQuery()
-  let opts = "set feedback off\n" .
-          \  "set autotrace off\n" .
-          \  "set pagesize 9999\n" .
-          \  "set heading off\n" .
-          \  "set linesize 10000\n" .
-          \  "set emb on pages 0 newp none\n" 
-  return opts
-endfunction
-
 " Describes the provided database object. If no object is given then the
 " word under cursor is used.
 function! vorax#Describe(object)
   let object = a:object
+  ruby p VIM::evaluate('object')
   if object == ""
     let isk_bak = &isk
     " the $ and # should be considered as part of an word
@@ -857,19 +1014,11 @@ function! vorax#Describe(object)
     let object = expand('<cword>')
     exe 'set isk=' . isk_bak
   endif
-  call vorax#saveSqlplusSettings()
-  let result = vorax#Exec(vorax#safeForInternalQuery() .
+  let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ 'desc ' . object . ";\n" 
         \ , 0)
-  call vorax#restoreSqlplusSettings()
-  call s:FocusResultsWindow()
-  " clear the result window?
-  if g:vorax_resultwin_clear
-    normal ggdG
-  endif
-  normal G$
-  call append(line('$'), result)
+  call s:SpitOutput(result)
 endfunction
 
 " Returns 1 if the provided filename is a vorax managed one,

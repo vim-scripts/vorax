@@ -30,7 +30,7 @@ if has('win32') || has('win64')
   function s:interface.startup() dict
     " startup the interface
     let self.last_error = ""
-    ruby $io = popen("sqlplus -S /nolog") rescue VIM::command("let self.last_error='" + $!.message.gsub(/'/, "''") + "'")
+    ruby $io = popen("sqlplus /nolog") rescue VIM::command("let self.last_error='" + $!.message.gsub(/'/, "''") + "'")
     let s:last_line = ""
   endfunction
 
@@ -66,12 +66,13 @@ if has('win32') || has('win64')
     ruby << EOF
       if buffer = $io.read
         end_marker = VIM::evaluate('s:end_marker')
+        end_pattern = Regexp.new(end_marker + '$')
         lines = buffer.gsub(/\r/, '').split(/\n/)
         lines.map do |line| 
           if VIM::evaluate('self.truncated') == 1
             last_line = VIM::evaluate('s:last_line') + line
           end
-          if last_line == end_marker || line == end_marker
+          if end_pattern.match(last_line) || end_pattern.match(line)
             VIM::command('let self.more = 0')
             break
           else
@@ -95,11 +96,14 @@ EOF
     let dbcommand = substitute(a:command, '\_s*\_$', '', 'g')
     " now, embed our command
     let content = dbcommand . "\n"
-    " add the end marker
-    let content .= "prompt " . s:end_marker . "\n"
     " write everything into a nice sql file
     call writefile(split(content, '\n'), s:temp_in) 
     return '@' . s:temp_in
+  endfunction
+
+  function s:interface.finalize() dict
+    " add the end marker
+    call self.send("\nprompt " . s:end_marker . "\n")
   endfunction
 
   function s:interface.shutdown() dict

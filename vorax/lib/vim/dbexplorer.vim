@@ -42,11 +42,7 @@ function! Vorax_DbExplorerGetNodes(path)
   if a:path == &titlestring
     return s:GenericCategories(1)
   elseif a:path =~ '^/\?[^/]\+/Users$'
-    call vorax#saveSqlplusSettings()
-    let result = vorax#Exec(vorax#safeForInternalQuery() .
-                          \ "select username from all_users order by 1;"
-                          \ , 0)
-    call vorax#restoreSqlplusSettings()
+    let result = vorax#Exec("select username from all_users order by 1;", 0)
     return join(result, "\n")
   elseif a:path =~ '^/\?[^/]\+/Users/[^/]\+$'
     return s:GenericCategories(0)
@@ -58,22 +54,14 @@ function! Vorax_DbExplorerGetNodes(path)
     if len(parts) == 4
       let user = "'" . parts[-2] . "'"
     endif
-    call vorax#saveSqlplusSettings()
-    let result = vorax#Exec(vorax#safeForInternalQuery() .
-                          \ "select object_name from all_objects where owner = " . user . " and object_type = '" . category . "' order by 1;"
-                          \ , 0)
-    call vorax#restoreSqlplusSettings()
+    let result = vorax#Exec("select object_name from all_objects where owner = " . user . " and object_type = '" . category . "' order by 1;", 0)
     return join(result, "\n")
   elseif a:path =~ '^/\?[^/]\+/Packages/[^/]\+$'
     let package = s:ObjectName(a:path)
-    call vorax#saveSqlplusSettings()
-    let result = vorax#Exec(vorax#safeForInternalQuery() .
-                          \ "select distinct decode(type, 'PACKAGE', 'Spec', 'Body') from user_source where name = '" . package . "' order by 1 desc;\n"
-                          \ , 0)
+    let result = vorax#Exec("select distinct decode(type, 'PACKAGE', 'Spec', 'Body') from user_source where name = '" . package . "' order by 1 desc;\n", 0)
     if result[-1] == 'Body' 
       let result += ['Both']
     endif
-    call vorax#restoreSqlplusSettings()
     return join(result, "\n")
   endif
 endfunction
@@ -277,15 +265,12 @@ function s:GetSource(type, object_name, schema)
   let type = a:type
   let object_name = a:object_name
   let result = []
-  call vorax#saveSqlplusSettings()
-  let result = vorax#Exec(vorax#safeForInternalQuery() .
-        \ "set long 1000000000 longc 60000\n" .
+  let result = vorax#Exec("set long 1000000000 longc 60000\n" .
         \ "set wrap on\n" .
         \ "exec dbms_metadata.set_transform_param( DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', TRUE );\n" .
         \ "exec dbms_metadata.set_transform_param( DBMS_METADATA.SESSION_TRANSFORM, 'BODY', TRUE );\n" .
         \ "select dbms_metadata.get_ddl('" . type . "', '" . object_name . "', " . a:schema . ") from dual;"
         \ , 0)
-  call vorax#restoreSqlplusSettings()
   " remove empty lines from the begin/end
   let result = s:TrimResult(result)
   return result

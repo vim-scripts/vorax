@@ -172,6 +172,18 @@ g:vorax_messages
 	-> this is a way of having all string messages in a central place. It
 	acts like a rude string resource. However, you may change it if you
 	don't like the already defined messages or you don't like English.
+
+g:vorax_logging
+	-> if 1 then the logging feature of the result window will be
+	activated at startup, otherwise, by default, the logging feature will
+	be disabled. However, it can be enabled by using the "L" key within
+	the result window. If logging is enabled everyting is written into the
+	result window will also be written into the log file. The log file has
+	the following format: vorax_[current_time_in_sec]_[pid_of_vim].log.
+
+g:vorax_logging_dir
+	-> where to create the logfile. By default is into the user's home
+	directory.
 	
 g:vorax_debug
 	->  this variable controlls whenever or not to write into a log file.

@@ -452,8 +452,7 @@ function s:ParamsFor(owner, module, submodule)
     let arg = 'argument_name'
     let type = 'data_type'
   endif
-  call vorax#saveSqlplusSettings()
-  let result = vorax#Exec(vorax#safeForInternalQuery() .
+  let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ "select " . arg . " || ' => ' || '::' || " . type . " || '::' || overload from all_arguments " . 
         \ "where owner='" . a:owner . "'" .
@@ -462,7 +461,6 @@ function s:ParamsFor(owner, module, submodule)
         \ " and argument_name is not null " .
         \ " order by overload, position;" 
         \ , 0)
-  call vorax#restoreSqlplusSettings()
   return result
 endfunction
 
@@ -590,8 +588,7 @@ endfunction
 "                 9  = packages
 "                 13 = types
 function s:ResolveDbObject(object)
-  call vorax#saveSqlplusSettings()
-  let result = vorax#Exec(vorax#safeForInternalQuery() .
+  let result = vorax#Exec(
         \ "set serveroutput on\n" .
         \ "declare\n".
         \ "   type t_context is varray(3) of integer;\n" .
@@ -640,7 +637,6 @@ function s:ResolveDbObject(object)
         \ " end;\n" .
         \ "/\n"
         \ , 0)
-  call vorax#restoreSqlplusSettings()
   let info = {}
   if len(result) > 0
     " we have results
@@ -669,8 +665,7 @@ function s:SchemaObjects(schema, pattern)
   else
     let schema = "'" . a:schema . "'"
   endif
-  call vorax#saveSqlplusSettings()
-  let result = vorax#Exec(vorax#safeForInternalQuery() .
+  let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ "select distinct " . obj . " || '::' || " .
         \ "       decode(t2.object_type, '', t1.object_type, t2.object_type) " .
@@ -702,7 +697,6 @@ function s:SchemaObjects(schema, pattern)
         \ "                               'TYPE') " .
         \ " order by 1; "
         \ , 0)
-  call vorax#restoreSqlplusSettings()
   let items = []
   for row in result
     let fields = split(row, '::')
@@ -746,8 +740,7 @@ function s:Columns(owner, table, pattern)
   else
     let owner = "'" . owner . "'"
   endif
-  call vorax#saveSqlplusSettings()
-  let result = vorax#Exec(vorax#safeForInternalQuery() .
+  let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ "select " . col . " from all_tab_columns " . 
         \ "where owner=" . owner . 
@@ -755,7 +748,6 @@ function s:Columns(owner, table, pattern)
         \ " and column_name like '" . toupper(a:pattern) . "%' " .
         \ " order by column_id;" 
         \ , 0)
-  call vorax#restoreSqlplusSettings()
   return result
 endfunction
 
@@ -769,8 +761,7 @@ function s:Submodules(owner, module, pattern)
   else
     let sm = "procedure_name"
   endif
-  call vorax#saveSqlplusSettings()
-  let result = vorax#Exec(vorax#safeForInternalQuery() .
+  let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ "select " . sm . " from all_procedures " .
         \ "where owner='" . a:owner . "'" .
@@ -778,7 +769,6 @@ function s:Submodules(owner, module, pattern)
         \ " and procedure_name like '".toupper(a:pattern)."%' " . 
         \ "order by subprogram_id;"
         \ , 0)
-  call vorax#restoreSqlplusSettings()
   return result
 endfunction
 

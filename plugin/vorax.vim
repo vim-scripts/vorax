@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "1.6"
+let g:loaded_vorax = "1.7"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -27,7 +27,8 @@ set cpo&vim
 if !exists('g:vorax_sqlplus_header')
   " a cr delimited list of commands to be executed into the sqlplus
   " envirnoment before creating a new oracle session. These commands do not overide the
-  " settings from the [g]login.sql file.
+  " settings from the [g]login.sql file. If you want echoing for your commands then
+  " add [set echo on\n] at the end of this header.
   let g:vorax_sqlplus_header = "set linesize 10000\n" .
                              \ "set tab off\n" .
                              \ "set wrap off\n" .
@@ -35,7 +36,7 @@ if !exists('g:vorax_sqlplus_header')
                              \ "set flush on\n" .
                              \ "set colsep \"   \"\n" .
                              \ "set trimout on\n" .
-                             \ "set trimspool on\n"
+                             \ "set trimspool on\n" 
 endif
 
 if !exists('g:vorax_resultwin_geometry')
@@ -103,6 +104,10 @@ if !exists('g:vorax_messages')
   let g:vorax_messages = { 
                         \  "done"                             : "done.",
                         \  "executing"                        : "Executing...",
+                        \  "start_log"                        : "Logging started into {#}",
+                        \  "error_log"                        : "Cannot start logging!\n{#}",
+                        \  "stop_log"                         : "Logging stopped!",
+                        \  "connecting"                       : "Connecting to {#}...",
                         \  "how_to_prompt"                    : "press ENTER to answer for prompted values.",
                         \  "username"                         : "Username",
                         \  "password"                         : "Password",
@@ -121,8 +126,19 @@ if !exists('g:vorax_messages')
                         \}
 endif
 
+if !exists('g:vorax_logging')
+  " whenever or not to log everything is written into the
+  " result window.
+  let g:vorax_logging = 0
+endif
+
+if !exists('g:vorax_logging_dir')
+  " where to write the log file
+  let g:vorax_logging_dir = expand('$HOME') 
+endif
+
 if !exists('g:vorax_debug')
-  " Wherever or not to write into a log file. This
+  " Whenever or not to write into a log file. This
   " feature relies to the existance of the log.vim
   " plugin: http://www.vim.org/scripts/script.php?script_id=2330
   " The log plugin should reside in autoload directory.
@@ -154,11 +170,11 @@ if !exists(':VoraxExecVisualSQL')
     command! -nargs=0 -range VoraxExecVisualSQL :call vorax#Exec(vorax#SelectedBlock(), 1)
 endif
 
-if !exists(':VoraxDescribeVisual')
+if exists(':VoraxDescribeVisual') != 2
     command! -nargs=0 -range VoraxDescribeVisual :call vorax#Describe(vorax#SelectedBlock())
 endif
 
-if !exists(':VoraxDescribe')
+if exists(':VoraxDescribe') != 2
     command! -nargs=? VoraxDescribe :call vorax#Describe(<q-args>)
 endif
 
