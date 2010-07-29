@@ -39,13 +39,19 @@ if has('unix')
     " we don't want the above commands to be shown therefore
     " just consume the current output
     if self.last_error == ""
-      while 1
+      let step = 1
+      while step <= 100
         call self.read()
-        if !self.more
+        if !self.more || self.last_error != "" 
           break
         endif
         sleep 50m
+        let step += 1
       endwhile
+      if step == 1000 && self.more
+        " Give up after 1000 retries
+        self.last_error = "Timeout on initializing interface."
+      endif
     endif
     let s:last_line = ""
   endfunction
@@ -87,6 +93,8 @@ if has('unix')
             end
             if end_pattern.match(last_line) || end_pattern.match(line)
               VIM::command('let self.more = 0')
+              # consume the output after the marker
+              $io.read
               break
             else
               l = line.gsub(/'/, "''")
@@ -112,14 +120,15 @@ EOF
     let dbcommand = substitute(a:command, '\_s*\_$', '', 'g')
     " now, embed our command
     let content = dbcommand . "\n"
+    " add the end marker
+    let content .= "prompt " . s:end_marker . "\n"
     " write everything into a nice sql file
     call writefile(split(content, '\n'), s:temp_in) 
     return '@' . s:temp_in
   endfunction
-  
-  function s:interface.finalize() dict
-    " add the end marker
-    call self.send("\nprompt " . s:end_marker . "\n")
+
+  function s:interface.mark_end() dict
+    call self.send("\nprompt " . s:end_marker)
   endfunction
 
   function s:interface.shutdown() dict

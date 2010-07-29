@@ -91,6 +91,10 @@ VoraX defines the following commands:
 :VoraxDescribeVisual
 	-> describes the visual selected database object.
 
+:VoraxGotoDefinition [object]
+	-> Opens the definition of the provided object. If no object is
+	provided the one under cursor is assumed. The object will be opened
+	into a readonly buffer.
 ==============================================================================
 MAPPINGS 						      *vorax-mappings*
 
@@ -219,5 +223,12 @@ problems.
 
 XpTemplates plugin is available at:
 http://www.vim.org/scripts/script.php?script_id=2611
+
+TagList is another nice plugin which may be used with VoraX. It provides a
+code navigation browser for the Oracle packages and some sql files (e.g.
+tables).
+
+TagList plugin is available at:
+http://www.vim.org/scripts/script.php?script_id=273
 
 vim:ts=8 sw=8 noexpandtab tw=78 ft=help:

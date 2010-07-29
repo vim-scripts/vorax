@@ -17,10 +17,13 @@ function! NERDTreeVoraxExec()
     let cmd = treenode.path.str({'escape': 0})
     " to address blanks in path on windows
     let cmd = fnamemodify(cmd, ':8')
-    if vorax#Managed(cmd)
-      call vorax#Exec('@' . cmd, 1)
-    else
-      echo g:vorax_messages['wrong_file']
+    if exists('*Vorax_UtilsToolkit')
+      let utils = Vorax_UtilsToolkit()
+      if utils.Managed(cmd)
+        call vorax#Exec('@' . cmd, 1, "")
+      else
+        echo g:vorax_messages['wrong_file']
+      endif
     endif
   else
       echo g:vorax_messages['dir_not_allowed']

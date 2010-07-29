@@ -74,6 +74,8 @@ if has('win32') || has('win64')
           end
           if end_pattern.match(last_line) || end_pattern.match(line)
             VIM::command('let self.more = 0')
+            # consume the output after the marker
+            $io.read
             break
           else
             l = line.gsub(/'/, "''")
@@ -96,14 +98,15 @@ EOF
     let dbcommand = substitute(a:command, '\_s*\_$', '', 'g')
     " now, embed our command
     let content = dbcommand . "\n"
+    " add the end marker
+    let content .= "prompt " . s:end_marker . "\n"
     " write everything into a nice sql file
     call writefile(split(content, '\n'), s:temp_in) 
     return '@' . s:temp_in
   endfunction
 
-  function s:interface.finalize() dict
-    " add the end marker
-    call self.send("\nprompt " . s:end_marker . "\n")
+  function s:interface.mark_end() dict
+    call self.send("\nprompt " . s:end_marker)
   endfunction
 
   function s:interface.shutdown() dict

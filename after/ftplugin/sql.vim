@@ -6,7 +6,12 @@
 setlocal omnifunc=Vorax_Complete
 
 " defines vorax mappings for the current buffer
-call vorax#CreateBufferMappings()
+if !exists('*Vorax_UtilsToolkit')
+  runtime! vorax/lib/vim/vorax_utils.vim
+endif
+
+let utils = Vorax_UtilsToolkit()
+call utils.CreateBufferMappings()
 
 
 

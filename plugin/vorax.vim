@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "1.7"
+let g:loaded_vorax = "1.8"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -108,6 +108,10 @@ if !exists('g:vorax_messages')
                         \  "error_log"                        : "Cannot start logging!\n{#}",
                         \  "stop_log"                         : "Logging stopped!",
                         \  "connecting"                       : "Connecting to {#}...",
+                        \  "load_wait"                        : "Loading {#}. Please wait...",
+                        \  "reading"                          : "Reading...",
+                        \  "open_obj"                         : "Opening {#}...",
+                        \  "search_for"                       : "Search for {#}...",
                         \  "how_to_prompt"                    : "press ENTER to answer for prompted values.",
                         \  "username"                         : "Username",
                         \  "password"                         : "Password",
@@ -142,7 +146,7 @@ if !exists('g:vorax_debug')
   " feature relies to the existance of the log.vim
   " plugin: http://www.vim.org/scripts/script.php?script_id=2330
   " The log plugin should reside in autoload directory.
-  let g:vorax_debug = 0
+  let g:vorax_debug = 1
 endif
 
 """""""""""""""""""""""""""""""""""
@@ -154,7 +158,7 @@ if !exists(':VoraxConnect')
 endif
 
 if !exists(':VoraxExecUnderCursor')
-    command! -nargs=0 VoraxExecUnderCursor :call vorax#Exec('', 1)
+    command! -nargs=0 VoraxExecUnderCursor :call vorax#Exec('', 1, "")
 endif
 
 if !exists(':VoraxExecBuffer')
@@ -167,7 +171,7 @@ if !exists(':VoraxDbExplorer')
 endif
 
 if !exists(':VoraxExecVisualSQL')
-    command! -nargs=0 -range VoraxExecVisualSQL :call vorax#Exec(vorax#SelectedBlock(), 1)
+    command! -nargs=0 -range VoraxExecVisualSQL :call vorax#Exec(vorax#SelectedBlock(), 1, "")
 endif
 
 if exists(':VoraxDescribeVisual') != 2
@@ -176,6 +180,10 @@ endif
 
 if exists(':VoraxDescribe') != 2
     command! -nargs=? VoraxDescribe :call vorax#Describe(<q-args>)
+endif
+
+if !exists(':VoraxGotoDefinition')
+    command! -nargs=? VoraxGotoDefinition :call vorax#GotoDefinition(<q-args>)
 endif
 
 """""""""""""""""""""""""""""""""""
@@ -223,22 +231,6 @@ endfunction
 function Vorax_GetInterface()
   return s:interface
 endfunction
-
-" Load interfaces
-runtime! vorax/interface/**/*.vim
-
-" Load vim libraries
-runtime! vorax/lib/vim/*.vim
-
-" Load ruby libraries
-let s:ruby_lib_dir = fnamemodify(finddir('vorax/lib/ruby', fnamemodify(&rtp, ':p:8')), ':p:8')
-let s:ruby_lib_dir = substitute(s:ruby_lib_dir, '\', '/', 'g')
-" the above trickery is for Windows OS
-if s:ruby_lib_dir != ""
-  let s:ruby_lib_dir = substitute(s:ruby_lib_dir, '\', '/', 'g')
-  ruby require "rubygems"
-  ruby Dir[VIM::evaluate('s:ruby_lib_dir')+"*.rb"].each {|file| require file}
-endif
 
 let &cpo = s:keep_cpo
 unlet s:keep_cpo

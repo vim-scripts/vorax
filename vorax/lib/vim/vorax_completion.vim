@@ -341,6 +341,21 @@ let s:keywords = [  {'word' : 'ALL', 'kind' : 'kyw', 'dup': 1},
                   \ {'word' : 'ZONE', 'kind' : 'kyw', 'dup': 1}   ]
 
 function! Vorax_Complete(findstart, base)
+  if !(exists('s:parser'))
+    " if not loaded yet
+    let s:parser = {}
+    let s:parser = Vorax_ParserToolkit()
+  endif
+  if !(exists('s:utils'))
+    " if not loaded yet
+    let s:utils = {}
+    let s:utils = Vorax_UtilsToolkit()
+  endif
+  if !(exists('s:db'))
+    " if not loaded yet
+    let s:db = {}
+    let s:db = Vorax_DbLayerToolkit()
+  endif
   " First pass through this function determines how much of the line should
   " be replaced by whatever is chosen from the completion list
   if a:findstart
@@ -350,7 +365,7 @@ function! Vorax_Complete(findstart, base)
     let complete_from = -1
     let s:prefix   = ""
     let s:params = 0
-    let s:crr_statement = vorax#UnderCursorStatement()
+    let s:crr_statement = s:utils.UnderCursorStatement()
     while start > 0
       if strpart(s:crr_statement[4], 0, s:crr_statement[5] - 1) =~ '[(,]\_s*$'
         " parameters completion
@@ -392,14 +407,14 @@ function! Vorax_Complete(findstart, base)
       " for sure therefore we'll try in this order
 
       " check for an alias
-      let result = s:ColumnsFromAlias(parts[0], a:base)
+      let result = s:parser.ColumnsFromAlias(s:crr_statement, parts[0], a:base)
       if len(result) == 0
         " no alias could be resolved... go on
-        let info = s:ResolveDbObject(parts[0])
+        let info = s:db.ResolveDbObject(parts[0])
         if has_key(info, 'schema') 
           if info.type == 2 || info.type == 4
             " complete columns
-            let result = s:Columns(info.schema, info.object, a:base)
+            let result = s:parser.Columns(info.schema, info.object, a:base, s:prefix)
           elseif info.type == 9 || info.type == 13
             " complete proc/func from the package/type
             let result = s:Submodules(info.schema, info.object, a:base)
@@ -411,11 +426,11 @@ function! Vorax_Complete(findstart, base)
       endif
     elseif len(parts) == 2
       " we can have here someting like owner.object
-      let info = s:ResolveDbObject(parts[0] . '.' . parts[1])
+      let info = s:db.ResolveDbObject(parts[0] . '.' . parts[1])
       if has_key(info, 'schema') 
         if info.type == 2 || info.type == 4
           " complete columns
-          let result = s:Columns(info.schema, info.object, a:base)
+          let result = s:parser.Columns(info.schema, info.object, a:base, s:prefix)
         elseif info.type == 9 || info.type == 13
           " complete proc/func from the package/type
           let result = s:Submodules(info.schema, info.object, a:base)
@@ -436,7 +451,7 @@ endfunction
 function s:SyntaxItems(start_with)
   let pattern = '^' . a:start_with
   let result = filter(copy(s:keywords), 'v:val.word =~? pattern')
-  if s:IsLower(a:start_with)
+  if s:utils.IsLower(a:start_with)
     let result = map(result, "{'word':tolower(v:val.word), 'dup':v:val.dup, 'kind':v:val.kind}")
   endif
   return result
@@ -445,7 +460,7 @@ endfunction
 " Get parameter for the given module/submodule. If module is empty then
 " the parameters for a standalone function/procedure is returned.
 function s:ParamsFor(owner, module, submodule)
-  if s:IsLower(a:submodule)
+  if s:utils.IsLower(a:submodule)
     let arg = 'lower(argument_name)'
     let type = 'lower(data_type)'
   else
@@ -460,7 +475,7 @@ function s:ParamsFor(owner, module, submodule)
         \ " and object_name ='" . toupper(a:submodule) . "'" .
         \ " and argument_name is not null " .
         \ " order by overload, position;" 
-        \ , 0)
+        \ , 0, "")
   return result
 endfunction
 
@@ -478,13 +493,13 @@ EOF
     let fields = split(on_fnc, '\.')
     if len(fields) == 1
       " a procedure, or a function
-      let info = s:ResolveDbObject(fields[0])
+      let info = s:db.ResolveDbObject(fields[0])
       if has_key(info, 'schema') || info['schema'] != "" || info['object'] != ""
         let result = s:ParamsFor(info['schema'], '', info['object'])
       endif
     elseif len(fields) == 2
       " could be a package name + procedure or an owner + procedure
-      let info = s:ResolveDbObject(fields[0])
+      let info = s:db.ResolveDbObject(fields[0])
       if has_key(info, 'schema') || info['schema'] != "" || info['object'] != ""
         if info['type'] == 9
           " a package 
@@ -496,7 +511,7 @@ EOF
       endif
     elseif len(fields) == 3 
       " owner + package + proc/func
-      let info = s:ResolveDbObject(fields[0] . '.' . fields[1])
+      let info = s:db.ResolveDbObject(fields[0] . '.' . fields[1])
       if has_key(info, 'schema') || info['schema'] != "" || info['object'] != ""
         let result = s:ParamsFor(info['schema'], info['object'], toupper(fields[2]))
       endif
@@ -509,153 +524,11 @@ EOF
   return args
 endfunction
 
-" Get columns for the current position which might be comming from
-" an alias specified in prefix. Returns a row list of columns. Some
-" columns might be in the form of OBJECT.TABLE.*. These has to be further
-" fetched using s:ExpandColumns(cols).
-function s:ColumnsFromAlias(alias, prefix)
-  let stmt = s:crr_statement
-  let columns = []
-  ruby << EOF
-    AliasResolver.columns_for(VIM::evaluate('stmt[4]').upcase, VIM::evaluate('stmt[5]').to_i - 1, VIM::evaluate('a:alias')).each do |col|
-      VIM::command('call add(columns, \'' + col + '\')')
-    end
-EOF
-  let columns = s:ExpandColumns(columns)
-  if a:prefix != ""
-    "filter columns
-    let i = 0
-    for col in copy(columns)
-      if col !~? '^' . a:prefix
-        call remove(columns, i)
-      else
-        let i += 1
-      endif
-    endfor
-  endif
-  return sort(columns)
-endfunction
-
-" Expand columns provided as TABLE.*. This function is used for expanding
-" aliases.
-function s:ExpandColumns(cols)
-  let columns = []
-  for col in a:cols
-    if col =~ '\.\*$'
-      " get rid of the last .*
-      let col = substitute(col, '\.\*$', "", "")
-      " this has to be expanded
-      let parts = split(col, '\.')
-      if len(parts) == 1
-        " expand a local object
-        let info = s:ResolveDbObject(parts[0])
-        if has_key(info, 'schema')
-          call extend(columns, s:Columns(info.schema, info.object, ""))
-        endif
-      elseif len(parts) == 2
-        " expand an object with a schema specified
-        call extend(columns, s:Columns(toupper(parts[0]), toupper(parts[1]), ""))
-      endif
-    else
-      let columns += [col]
-    endif
-  endfor
-  return columns
-endfunction
-
-" this function returns 1 if the first char from a:str is lower,
-" or 0 otherwise. It is used in completion functions to determine
-" how the items should be returned: upper or lower.
-function s:IsLower(str)
-  if a:str[0] == tolower(a:str[0])
-    return 1
-  else
-    return 0
-  endif
-endfunction
-
-" This function is used to resolve a object name within the database
-" context. It returnes a dictionary with the following keys:
-"   'schema' => the schema of the object
-"   'object' => the actual object
-"   'dblink' => the name of the dblink if any
-"   'type'   => the type of the object:
-"                 2  = tables
-"                 4  = views
-"                 5  = synonym
-"                 7  = procedure
-"                 8  = function
-"                 9  = packages
-"                 13 = types
-function s:ResolveDbObject(object)
-  let result = vorax#Exec(
-        \ "set serveroutput on\n" .
-        \ "declare\n".
-        \ "   type t_context is varray(3) of integer;\n" .
-        \ "   schema varchar2(30);\n" .
-        \ "   part1 varchar2(30);\n" .
-        \ "   part2 varchar2(30);\n" .
-        \ "   dblink varchar2(100);\n" .
-        \ "   part1_type number;\n" .
-        \ "   object_number number;\n" .
-        \ "   l_obj varchar2(100);\n" .
-        \ "   l_skip boolean := false;\n" .
-        \ "   try_ctx t_context := t_context(1, 2, 7);\n" .
-        \ "   invalid_context exception;\n" .
-        \ "   no_object exception;\n" .
-        \ "   pragma exception_init(invalid_context, -04047);\n" .
-        \ "   pragma exception_init(no_object, -06564);\n" .
-        \ " begin\n" .
-        \ "   for ctx in try_ctx.first .. try_ctx.last loop\n" .
-        \ "     begin\n" .
-        \ "       DBMS_UTILITY.NAME_RESOLVE (\n" .
-        \ "          '" . a:object . "', \n" .
-        \ "          try_ctx(ctx),\n" .
-        \ "          schema, \n" .
-        \ "          part1, \n" .
-        \ "          part2,\n" .
-        \ "          dblink, \n" .
-        \ "          part1_type, \n" .
-        \ "          object_number);\n" .
-        \ "       l_skip := false;\n" .
-        \ "     exception\n" .
-        \ "       when invalid_context then\n" .
-        \ "         l_skip := true;\n" .
-        \ "       when no_object then\n" .
-        \ "         return;\n" .
-        \ "     end;\n" .
-        \ "     if l_skip = false then\n" .
-        \ "       if part1 is not null then\n" .
-        \ "          l_obj := part1;\n" .
-        \ "       elsif part1 is null and part2 is not null then\n" .
-        \ "          l_obj := part2;\n" .
-        \ "       end if;\n" .
-        \ "       dbms_output.put_line(schema || '::' || l_obj || '::' || dblink || '::' || part1_type);\n" .
-        \ "       return;\n" .
-        \ "     end if;\n" .
-        \ "   end loop;\n" .
-        \ " end;\n" .
-        \ "/\n"
-        \ , 0)
-  let info = {}
-  if len(result) > 0
-    " we have results
-    let record = result[0]
-    let fields = split(record, '::')
-    if len(fields) == 4
-      let info['schema'] = fields[0]
-      let info['object'] = fields[1]
-      let info['dblink'] = fields[2]
-      let info['type'] = fields[3]
-    endif
-  endif
-  return info
-endfunction
 
 " Get user db objects which matches the provided pattern.
 function s:SchemaObjects(schema, pattern)
   let obj = ""
-  if s:IsLower(a:pattern)
+  if s:utils.IsLower(a:pattern)
     let obj = "lower(object_name)"
   else
     let obj = "object_name"
@@ -696,7 +569,7 @@ function s:SchemaObjects(schema, pattern)
         \ "                               'PACKAGE', " .
         \ "                               'TYPE') " .
         \ " order by 1; "
-        \ , 0)
+        \ , 0, "")
   let items = []
   for row in result
     let fields = split(row, '::')
@@ -725,38 +598,13 @@ function s:SchemaObjects(schema, pattern)
   return items
 endfunction
 
-" Get all columns which starts with the provided pattern
-" from the given owner.table object.
-function s:Columns(owner, table, pattern)
-  let col = ""
-  if s:IsLower(s:prefix)
-    let col = "lower(column_name)"
-  else
-    let col = "column_name"
-  endif
-  let owner = a:owner
-  if owner == ""
-    let owner = "user"
-  else
-    let owner = "'" . owner . "'"
-  endif
-  let result = vorax#Exec(
-        \ "set linesize 100\n" .
-        \ "select " . col . " from all_tab_columns " . 
-        \ "where owner=" . owner . 
-        \ " and table_name='" . a:table . "'" .
-        \ " and column_name like '" . toupper(a:pattern) . "%' " .
-        \ " order by column_id;" 
-        \ , 0)
-  return result
-endfunction
 
 " Get all procedures/functions for the provided plsql module
 " (package/type). Only the submodules which matches the given
 " pattern are returned
 function s:Submodules(owner, module, pattern)
   let sm = ""
-  if s:IsLower(s:prefix)
+  if s:utils.IsLower(s:prefix)
     let sm = "lower(procedure_name)"
   else
     let sm = "procedure_name"
@@ -768,7 +616,7 @@ function s:Submodules(owner, module, pattern)
         \ " and object_name='" . a:module . "'" . 
         \ " and procedure_name like '".toupper(a:pattern)."%' " . 
         \ "order by subprogram_id;"
-        \ , 0)
+        \ , 0, "")
   return result
 endfunction
 
