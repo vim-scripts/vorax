@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "1.8"
+let g:loaded_vorax = "1.9"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -141,12 +141,18 @@ if !exists('g:vorax_logging_dir')
   let g:vorax_logging_dir = expand('$HOME') 
 endif
 
+if !exists('g:vorax_connwin_geometry')
+  " The geometry of the connection window. 
+  " The syntax is the same as for split
+  let g:vorax_connwin_geometry = "vertical botright 25"
+endif
+
 if !exists('g:vorax_debug')
   " Whenever or not to write into a log file. This
   " feature relies to the existance of the log.vim
   " plugin: http://www.vim.org/scripts/script.php?script_id=2330
   " The log plugin should reside in autoload directory.
-  let g:vorax_debug = 1
+  let g:vorax_debug = 0
 endif
 
 """""""""""""""""""""""""""""""""""
@@ -186,6 +192,11 @@ if !exists(':VoraxGotoDefinition')
     command! -nargs=? VoraxGotoDefinition :call vorax#GotoDefinition(<q-args>)
 endif
 
+if !exists(':VoraxToggleConnWindow')
+    command! -nargs=0 VoraxToggleConnWindow :call vorax#ToggleConnWindow()
+    nmap <unique> <script> <Plug>VoraxToggleConnWindow :VoraxToggleConnWindow<CR>
+endif
+
 """""""""""""""""""""""""""""""""""
 " Define mappings
 """""""""""""""""""""""""""""""""""
@@ -195,6 +206,10 @@ endif
 
 if !hasmapto('<Plug>VoraxDbExplorer') && !hasmapto('<Leader>vv', 'n')
     nmap <unique> <Leader>vv <Plug>VoraxDbExplorer
+endif
+
+if !hasmapto('<Plug>VoraxToggleConnWindow') && !hasmapto('<Leader>vo', 'n')
+    nmap <unique> <Leader>vo <Plug>VoraxToggleConnWindow
 endif
 
 """""""""""""""""""""""""""""""""""

@@ -111,7 +111,7 @@ EOF
 
   function s:interface.shutdown() dict
     " shutdown the interface
-    ruby Process.kill(9, $io.pid)
+    ruby Process.kill(9, $io.pid) if $io
     ruby $io = nil
     " no garbage please: delete the temporary file, if any
     call delete(s:temp_in)

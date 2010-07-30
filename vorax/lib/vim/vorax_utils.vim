@@ -97,7 +97,9 @@ function s:utils.UnderCursorStatement() dict
     let result = search(';\|\/', 'beW')
     if result
       let syn = synIDattr(synIDtrans(synID(line("."), col("."), 1)), "name")  
-      if syn != "Constant" && syn != 'Comment'
+      if syn == "Constant" || syn == 'Comment'
+        " do nothing
+      else
         " if the delimitator is not within quotes or comments
         normal l
         let start_line = line('.')
@@ -111,13 +113,15 @@ function s:utils.UnderCursorStatement() dict
     endif
   endwhile
   while (stop_line == 0)
-    let result = search(';\|\/', 'Wc')
+    let result = search(';\|\/', 'W')
     if result
       let syn = synIDattr(synIDtrans(synID(line("."), col("."), 1)), "name")  
-      if syn != "Constant" && syn != "Comment"
+      if syn == "Constant" || syn == "Comment"
+        " do nothing
+      else
         " if the delimitator is not within quotes or comments
         let stop_line = line('.')
-        let stop_col = col('.')
+        let stop_col = col('.') - 1
       endif
     else
       " set the begining of the statement at the very

@@ -35,11 +35,14 @@ let s:tk_utils = Vorax_UtilsToolkit()
 " Get the connection toolkit
 let s:tk_db = Vorax_DbLayerToolkit()
 
-" Geth the result window toolkit
+" Get the result window toolkit
 let s:tk_rwin = Vorax_RwinToolkit()
 
-" Geth the result window toolkit
+" Get the parser toolkit
 let s:tk_parser = Vorax_ParserToolkit()
+
+" Geth the connection window toolkit
+let s:tk_cwin = Vorax_CwinToolkit()
 
 " This variable contains all plsql_objects processed by the
 " last exec command in foreground mode. This is used to
@@ -84,6 +87,7 @@ function! vorax#Exec(cmd, show, feedback)
       " remove trailing blanks from cmd
       let dbcommand = substitute(dbcommand, '\_s*\_$', '', 'g')
       " add the delimitator
+      let dbcommand .= s:tk_db.Delimitator(dbcommand)
       silent! call s:log.debug('statement='.dbcommand)
       " executes the sql file
       if a:show
@@ -172,6 +176,13 @@ function! vorax#Connect(cstr)
   " registers an autocommand to shutdown the interface when vim exits
   autocmd VoraX VimLeave * call vorax#Disconnect()
   silent! call s:log.trace('end of vorax#Connect(cstr)')
+endfunction
+
+" Opens the db explorer window
+function! vorax#ToggleConnWindow()
+  silent! call s:log.trace('start of vorax#ToggleConWindow()')
+  call s:tk_cwin.FocusWindow()
+  silent! call s:log.trace('end of vorax#ToggleConWindow()')
 endfunction
 
 " Opens the db explorer window

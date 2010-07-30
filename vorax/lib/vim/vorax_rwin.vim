@@ -346,9 +346,9 @@ function! s:CancelExec()
       " with the current session, inform the user and ask him/her for a new connection
       let response = input(s:tk_utils.Translate(g:vorax_messages['abort_session'],  
                         \ s:tk_db.cdata['user'] . '@' . s:tk_db.cdata['db']) . " ([y]/n): ")
-      if response =~? '\s*y\?\s*'
+      if response =~? '\s*y\s*' || response == ""
         " build up a connection string from the last credentials
-        let cs = s:tk_db.cdata['user'] . '/"' . s:tk_db.cdata['passwd'] . '"'
+        let cs = s:tk_db.cdata['user'] . '/"' . substitute(s:tk_db.cdata['passwd'], '^"\|"$', '', 'g') . '"'
         if s:tk_db.cdata['osauth'] 
           let cs .= " " . s:tk_db.cdata['db']
         else

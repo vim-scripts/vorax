@@ -12,6 +12,7 @@
 	   Mappings .............................. |vorax-mappings|
 	   Configuration .................... |vorax-configuration|
 	   Using DbExplorer .................... |vorax-dbexplorer|
+	   Using the connection window ....... |vorax-conn-window|
 	   Integration ........................ |vorax-integration|
 
 VoraX aims to be a simple, yet a powerful IDE for Oracle databases. Instead of
@@ -95,6 +96,9 @@ VoraX defines the following commands:
 	-> Opens the definition of the provided object. If no object is
 	provided the one under cursor is assumed. The object will be opened
 	into a readonly buffer.
+
+:VoraxToggleConnWindow
+	-> Toggles the connection profiles window.
 ==============================================================================
 MAPPINGS 						      *vorax-mappings*
 
@@ -105,6 +109,8 @@ The default mappings for VoraX are:
 <Leader>vb 	: Executes all statements from the current buffer.
 <Leader>vv 	: Opens the database explorer tree.
 <Leader>vd 	: Describe the database object under cursor.
+<Leader>vg 	: Go to definition of the database object under cursor.
+<Leader>vo 	: Toggles the connection profiles window.
 
 ==============================================================================
 CONFIGURATION 						 *vorax-configuration*
@@ -118,7 +124,7 @@ g:vorax_sqlplus_header
 
 g:vorax_resultwin_geometry
 	-> the position and the size of the results window. The syntax is the
-	same as for split. The default value is "botright 10".
+	same as for split. 
 
 g:vorax_resultwin_clear
 	-> defines whenever or not the result window to be cleared between
@@ -189,6 +195,10 @@ g:vorax_logging_dir
 	-> where to create the logfile. By default is into the user's home
 	directory.
 	
+g:vorax_connwin_geometry
+	-> the position and the size of the connection profiles window. The 
+	syntax is the same as for split. 
+
 g:vorax_debug
 	->  this variable controlls whenever or not to write into a log file.
 	This feature depends on the log.vim plugin which is available on 
@@ -202,6 +212,26 @@ The DbExplorer may be used to browse database objects and to view/edit their
 definitions. To move through nodes use the standard vim navigation keys. To
 open a node you may press ENTER or the "o" key. To refresh a node you may
 use the "R" key.
+
+==============================================================================
+USING THE CONNECTION WINDOW 			 	    *vorax-conn-window*
+
+The connection profiles window is a special buffer where you may store all
+your frequently used connection strings. A connection profile can be something
+like user@database or an EZCONNECT string. Even it's not advisable you may
+also include the password if you want, but take care that it will be shown and
+stored in clear. The connection profiles window assumes that one profile per
+line is provided. For all important connection profiles (e.g. connections with
+a DBA user on a productive database) you may put a "!" before in order to
+highlight them. This should act like an warning that you are about to connect
+to a powerful user. If a line starts with a "--" (the sql comment style) that
+line is ignored. You may use this to separate various profiles according to
+your criteria. In order to connect using a profile just go on that line and
+press ENTER. As an additional mapping you may close the profiles window by
+pressing the "q" key.
+
+The connection profiles file is always stored into:
+&rtp/vorax/config/_vorax_connections file.
 
 ==============================================================================
 INTEGRATION 						    *vorax-integration*
