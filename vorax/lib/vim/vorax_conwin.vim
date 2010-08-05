@@ -23,14 +23,13 @@ let g:vorax_cwin = 1
 let s:cwin = {}
 
 " The name of the vorax results buffer
-let s:conn_dir = finddir('vorax/config', fnamemodify(&rtp, ':p:8'))
-let s:conn_file = substitute(s:conn_dir, '\\', '/', 'g') . '/_vorax_connections'
+let s:conn_file = substitute(fnamemodify(expand('$HOME'), ':p:8') . '/_vorax_connections', '\\', '/', 'g')
 
 " Displays the connection window. 
 function s:cwin.FocusWindow() dict
   silent! call s:log.trace('start s:cwin.FocusWindow()')
   silent! call s:log.debug('s:conn_file=' . s:conn_file)
-  let buf_nr = bufnr('^' . s:conn_file . '$')
+  let buf_nr = bufnr('_vorax_connections$')
   silent! call s:log.debug('buf_nr='.buf_nr)
   if buf_nr == -1
     " the result buffer was closed, create a new one

@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "1.9"
+let g:loaded_vorax = "2.0"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -127,6 +127,15 @@ if !exists('g:vorax_messages')
                         \  "dir_not_allowed"                  : "Vorax cannot execute a directory.",
                         \  "dbexpl_edit_file_confirmation"    : "There is a [{#}] file in the current directory. If you just want to load " .
                         \                                       "the source for the database press ENTER, otherwise enter {#} to edit: " ,
+                        \  "invalid_password"                 : "Invalid password or key files.",
+                        \  "master_password"                  : "Master password",
+                        \  "store_passwd_question"            : "Would you like to store the password for this connection profile?",
+                        \  "passwd_mismatch"                  : "Passwords do not match! Retry please...",
+                        \  "retype_master_passwd"             : "Retype the master password",
+                        \  "master_passwd_required"           : "A master password is required",
+                        \  "passwd_repo_not_ready"            : "A repository with passwords was not initialized yet. VoraX will create one now...",
+                        \  "passwd_retry_exceeded"            : "Too many password retries. Give up...",
+                        \  "invalid_desc"                     : "Cannot describe this object.",
                         \}
 endif
 
@@ -145,6 +154,18 @@ if !exists('g:vorax_connwin_geometry')
   " The geometry of the connection window. 
   " The syntax is the same as for split
   let g:vorax_connwin_geometry = "vertical botright 25"
+endif
+
+if !exists('g:vorax_open_scratch_at_connect')
+  " whenever or not a scratch sql buffer to be opened at
+  " connect time.
+  let g:vorax_open_scratch_at_connect = 1
+endif
+
+if !exists('g:vorax_store_passwords')
+  " whenever or not VoraX should automatically store Oracle
+  " passwords in a safe way.
+  let g:vorax_store_passwords = 0
 endif
 
 if !exists('g:vorax_debug')
@@ -186,6 +207,14 @@ endif
 
 if exists(':VoraxDescribe') != 2
     command! -nargs=? VoraxDescribe :call vorax#Describe(<q-args>)
+endif
+
+if exists(':VoraxDescribeVerboseVisual') != 2
+    command! -nargs=0 -range VoraxDescribeVerboseVisual :call vorax#DescribeVerbose(vorax#SelectedBlock())
+endif
+
+if exists(':VoraxDescribeVerbose') != 2
+    command! -nargs=? VoraxDescribeVerbose :call vorax#DescribeVerbose(<q-args>)
 endif
 
 if !exists(':VoraxGotoDefinition')

@@ -340,22 +340,14 @@ let s:keywords = [  {'word' : 'ALL', 'kind' : 'kyw', 'dup': 1},
                   \ {'word' : 'YEAR', 'kind' : 'kyw', 'dup': 1}, 
                   \ {'word' : 'ZONE', 'kind' : 'kyw', 'dup': 1}   ]
 
+" import libs
+runtime! vorax/lib/vim/vorax_utils.vim
+runtime! vorax/lib/vim/vorax_dblayer.vim
+
+let s:utils = Vorax_UtilsToolkit()
+let s:db = Vorax_DbLayerToolkit()
+
 function! Vorax_Complete(findstart, base)
-  if !(exists('s:parser'))
-    " if not loaded yet
-    let s:parser = {}
-    let s:parser = Vorax_ParserToolkit()
-  endif
-  if !(exists('s:utils'))
-    " if not loaded yet
-    let s:utils = {}
-    let s:utils = Vorax_UtilsToolkit()
-  endif
-  if !(exists('s:db'))
-    " if not loaded yet
-    let s:db = {}
-    let s:db = Vorax_DbLayerToolkit()
-  endif
   " First pass through this function determines how much of the line should
   " be replaced by whatever is chosen from the completion list
   if a:findstart
@@ -407,14 +399,14 @@ function! Vorax_Complete(findstart, base)
       " for sure therefore we'll try in this order
 
       " check for an alias
-      let result = s:parser.ColumnsFromAlias(s:crr_statement, parts[0], a:base)
+      let result = s:ColumnsFromAlias(s:crr_statement, parts[0], a:base)
       if len(result) == 0
         " no alias could be resolved... go on
         let info = s:db.ResolveDbObject(parts[0])
         if has_key(info, 'schema') 
           if info.type == 2 || info.type == 4
             " complete columns
-            let result = s:parser.Columns(info.schema, info.object, a:base, s:prefix)
+            let result = s:Columns(info.schema, info.object, a:base, s:prefix)
           elseif info.type == 9 || info.type == 13
             " complete proc/func from the package/type
             let result = s:Submodules(info.schema, info.object, a:base)
@@ -430,7 +422,7 @@ function! Vorax_Complete(findstart, base)
       if has_key(info, 'schema') 
         if info.type == 2 || info.type == 4
           " complete columns
-          let result = s:parser.Columns(info.schema, info.object, a:base, s:prefix)
+          let result = s:Columns(info.schema, info.object, a:base, s:prefix)
         elseif info.type == 9 || info.type == 13
           " complete proc/func from the package/type
           let result = s:Submodules(info.schema, info.object, a:base)
@@ -439,6 +431,86 @@ function! Vorax_Complete(findstart, base)
     endif
     return result
   endif  
+endfunction
+
+" Get columns for the current position which might be comming from
+" an alias specified in prefix. Returns a row list of columns. Some
+" columns might be in the form of OBJECT.TABLE.*. These has to be further
+" fetched using s:ExpandColumns(cols).
+function s:ColumnsFromAlias(statement, alias, prefix)
+  let stmt = a:statement
+  let columns = []
+  ruby << EOF
+    AliasResolver.columns_for(VIM::evaluate('stmt[4]').upcase, VIM::evaluate('stmt[5]').to_i - 1, VIM::evaluate('a:alias')).each do |col|
+      VIM::command('call add(columns, \'' + col + '\')')
+    end
+EOF
+  let columns = s:ExpandColumns(columns, a:prefix)
+  if a:prefix != ""
+    "filter columns
+    let i = 0
+    for col in copy(columns)
+      if col !~? '^' . a:prefix
+        call remove(columns, i)
+      else
+        let i += 1
+      endif
+    endfor
+  endif
+  return sort(columns)
+endfunction
+
+" Expand columns provided as TABLE.*. This function is used for expanding
+" aliases.
+function s:ExpandColumns(cols, prefix)
+  let columns = []
+  for col in a:cols
+    if col =~ '\.\*$'
+      " get rid of the last .*
+      let col = substitute(col, '\.\*$', "", "")
+      " this has to be expanded
+      let parts = split(col, '\.')
+      if len(parts) == 1
+        " expand a local object
+        let info = s:db.ResolveDbObject(parts[0])
+        if has_key(info, 'schema')
+          call extend(columns, s:Columns(info.schema, info.object, "", a:prefix))
+        endif
+      elseif len(parts) == 2
+        " expand an object with a schema specified
+        call extend(columns, s:Columns(toupper(parts[0]), toupper(parts[1]), "", a:prefix))
+      endif
+    else
+      let columns += [col]
+    endif
+  endfor
+  return columns
+endfunction
+
+" Get all columns which starts with the provided pattern
+" from the given owner.table object.
+function s:Columns(owner, table, pattern, prefix)
+  let col = ""
+  if s:utils.IsLower(a:prefix)
+    let col = "lower(column_name)"
+  else
+    let col = "column_name"
+  endif
+  let owner = a:owner
+  if owner == ""
+    let owner = "user"
+  else
+    let owner = "'" . owner . "'"
+  endif
+  let result = vorax#Exec(
+        \ "set linesize 100\n" .
+        \ "select " . col . " from all_tab_columns " . 
+        \ "where owner=" . owner . 
+        \ " and table_name='" . a:table . "'" .
+        \ " and column_name like '" . toupper(a:pattern) . "%' " .
+        \ " order by column_id;" 
+        \ , 0, "")
+  return result
 endfunction
 
 " Used to compare completion items in order to
@@ -494,13 +566,13 @@ EOF
     if len(fields) == 1
       " a procedure, or a function
       let info = s:db.ResolveDbObject(fields[0])
-      if has_key(info, 'schema') || info['schema'] != "" || info['object'] != ""
+      if has_key(info, 'schema') && info['schema'] != "" && info['object'] != ""
         let result = s:ParamsFor(info['schema'], '', info['object'])
       endif
     elseif len(fields) == 2
       " could be a package name + procedure or an owner + procedure
       let info = s:db.ResolveDbObject(fields[0])
-      if has_key(info, 'schema') || info['schema'] != "" || info['object'] != ""
+      if has_key(info, 'schema') && info['schema'] != "" && info['object'] != ""
         if info['type'] == 9
           " a package 
           let result = s:ParamsFor(info['schema'], info['object'], toupper(fields[1]))
@@ -512,7 +584,7 @@ EOF
     elseif len(fields) == 3 
       " owner + package + proc/func
       let info = s:db.ResolveDbObject(fields[0] . '.' . fields[1])
-      if has_key(info, 'schema') || info['schema'] != "" || info['object'] != ""
+      if has_key(info, 'schema') && info['schema'] != "" && info['object'] != ""
         let result = s:ParamsFor(info['schema'], info['object'], toupper(fields[2]))
       endif
     endif

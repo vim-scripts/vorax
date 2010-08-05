@@ -7,12 +7,12 @@
 							*vorax* *vorax-plugin*
 
 	Contents:
-	   How to install ......................... |vorax-install|
+	   How to Install ......................... |vorax-install|
 	   Commands .............................. |vorax-commands|
 	   Mappings .............................. |vorax-mappings|
 	   Configuration .................... |vorax-configuration|
 	   Using DbExplorer .................... |vorax-dbexplorer|
-	   Using the connection window ....... |vorax-conn-window|
+	   Using the Connection Window ....... |vorax-conn-window|
 	   Integration ........................ |vorax-integration|
 
 VoraX aims to be a simple, yet a powerful IDE for Oracle databases. Instead of
@@ -50,6 +50,10 @@ install it using:
 3. a working Oracle client with sqlplus, which has to be available in the
 environment $PATH variable. The instant client with sqlplus should be just
 fine.
+4. optionaly, if you want to securely store passwords for your Oracle
+connections then the openssl ruby extension must be available. On Ubuntu systems
+you may use the following command:
+	sudo apt-get install libopenssl-ruby1.8
 
 Please notice that just ruby 1.8 is supported for the moment therefore be
 careful not to install ruby 1.9 instead.
@@ -92,6 +96,15 @@ VoraX defines the following commands:
 :VoraxDescribeVisual
 	-> describes the visual selected database object.
 
+:VoraxDescribeVerbose [object]
+	-> describes the provided database object in a detailed mode. For the
+	moment just tables and views are supported. Unlike the regular
+	describe, the detailed one also displays: comments, foreign keys,
+	indexes etc.
+
+:VoraxDescribeVerboseVisual
+	-> describes the visual selected database object in a detailed mode.
+
 :VoraxGotoDefinition [object]
 	-> Opens the definition of the provided object. If no object is
 	provided the one under cursor is assumed. The object will be opened
@@ -109,6 +122,8 @@ The default mappings for VoraX are:
 <Leader>vb 	: Executes all statements from the current buffer.
 <Leader>vv 	: Opens the database explorer tree.
 <Leader>vd 	: Describe the database object under cursor.
+<Leader>vdd 	: Describe the database object under cursor using the detailed
+		  mode.
 <Leader>vg 	: Go to definition of the database object under cursor.
 <Leader>vo 	: Toggles the connection profiles window.
 
@@ -119,8 +134,8 @@ You may customize VoraX using the following global variables:
 
 g:vorax_sqlplus_header
 	-> it is a "\n" delimited list of commands to be executed into the
-	sqlplus environment before creating a new oracle session. However, these
-	commands may be overiden by the settings from your [g]login.sql file.
+	sqlplus environment before creating a new oracle session. These
+	commands overides the settings from your [g]login.sql file.
 
 g:vorax_resultwin_geometry
 	-> the position and the size of the results window. The syntax is the
@@ -128,7 +143,7 @@ g:vorax_resultwin_geometry
 
 g:vorax_resultwin_clear
 	-> defines whenever or not the result window to be cleared between
-	subsequent SQL execution. If 1, the result window is cleared before
+	subsequent SQL executions. If 1, the result window is cleared before
 	executing another statements. Otherwise, the results from the new
 	executed statement are simply appended to the end of the already
 	existing content.
@@ -192,12 +207,29 @@ g:vorax_logging
 	the following format: vorax_[current_time_in_sec]_[pid_of_vim].log.
 
 g:vorax_logging_dir
-	-> where to create the logfile. By default is into the user's home
-	directory.
+	-> where to create the logfile if result window logging is requested. 
+	By default the user's home directory is assumed.
 	
 g:vorax_connwin_geometry
 	-> the position and the size of the connection profiles window. The 
 	syntax is the same as for split. 
+
+g:vorax_open_scratch_at_connect
+	-> if 1 then a scratch sql buffer will be opened after a successful
+	connection. This means you may start executing SQL statements right
+	away.
+
+g:vorax_store_passwords
+	-> if this option is set then you may store passwords for your
+	database connections in a secure repository. First time you choose to
+	store a password, VoraX will create a secured repository for you and it'll
+	ask for a master password. After that, it's enough to provide this
+	master password and all the other passwords for your oracle
+	connections will be fetched from this repository. The
+	encoding/decoding mechanism is based on RSA keys which are
+	automatically generated into the user's home directory. This feature
+	needs the openssl extension for ruby. In Ubuntu for example you may
+	install it using: sudo apt-get install libopenssl-ruby1.8
 
 g:vorax_debug
 	->  this variable controlls whenever or not to write into a log file.

@@ -105,10 +105,16 @@ function! Vorax_DbExplorerGetNodes(path)
     endif
     let result = vorax#Exec("select object_name from all_objects where owner = " . user . " and object_type = '" . category . "' order by 1;", 0, g:vorax_messages['reading'])
     return join(result, "\n")
-  elseif a:path =~ '^/\?[^/]\+/Packages/[^/]\+$'
+  elseif a:path =~ '^/\?[^/]\+/Packages/[^/]\+$' || a:path =~ '^/\?[^/]\+/Users/[^/]\+/Packages/[^/]\+$'
+    let user = 'user'
+    let parts = split(a:path, b:VrxTree_pathSeparator)
+    if len(parts) == 5
+      let user = "'" . parts[-3] . "'"
+    endif
+    echo user
     let package = s:ObjectName(a:path)
-    let result = vorax#Exec("select distinct decode(type, 'PACKAGE', 'Spec', 'Body') from user_source where name = '" . package . "' order by 1 desc;\n", 0, g:vorax_messages['reading'])
-    if result[-1] == 'Body' 
+    let result = vorax#Exec("select distinct decode(type, 'PACKAGE', 'Spec', 'Body') from all_source where owner = " . user . " and name = '" . package . "' order by 1 desc;\n", 0, g:vorax_messages['reading'])
+    if len(result) >= 1 && result[-1] == 'Body' 
       let result += ['Both']
     endif
     return join(result, "\n")
@@ -140,7 +146,7 @@ endfunction
 function! Vorax_DbExplorerIsLeaf(path)
   let parts = split(a:path, b:VrxTree_pathSeparator)
   if type(parts) == 3 && len(parts) >= 3
-    if (len(parts) == 3 && parts[-2] == 'Packages') 
+    if ((len(parts) == 3 || len(parts) == 5) && parts[-2] == 'Packages') 
         \ || (parts[-1] == 'Users' && len(parts) == 2) 
         \ || (len(parts) == 3 && parts[-2] == 'Users')
         \ || (len(parts) == 4 && parts[1] == 'Users')
@@ -161,7 +167,11 @@ function! Vorax_DbExplorerClick(path)
   let subtype = ""
   if object_name == 'Spec' || object_name == 'Body' || object_name == 'Both'
     let subtype = object_name
-    let object_name = split(a:path, b:VrxTree_pathSeparator)[2]
+    if a:path =~ '^/\?[^/]\+/Packages'
+      let object_name = split(a:path, b:VrxTree_pathSeparator)[2]
+    elseif a:path =~ '^/\?[^/]\+/Users/[^/]\+/Packages'
+      let object_name = split(a:path, b:VrxTree_pathSeparator)[-2]
+    endif
   endif
   echon s:utils.Translate(g:vorax_messages['load_wait'], object_name)
   if a:path =~ '^/\?[^/]\+/[^/]\+/'
@@ -170,7 +180,7 @@ function! Vorax_DbExplorerClick(path)
     if a:path =~ '^/\?[^/]\+/Users'
       let user = "'" . split(a:path, b:VrxTree_pathSeparator)[2] . "'"
     endif 
-    if a:path =~ '^/\?[^/]\+/Packages'
+    if a:path =~ '^/\?[^/]\+/Packages' || a:path =~ '^/\?[^/]\+/Users/[^/]\+/Packages'
       if subtype == 'Spec'
         let type = 'PACKAGE_SPEC'
       elseif subtype == 'Body'
@@ -178,7 +188,7 @@ function! Vorax_DbExplorerClick(path)
       elseif subtype == 'Both'
         let type = 'PACKAGE'
       endif
-    elseif a:path =~ '^/\?[^/]\+/Types'
+    elseif a:path =~ '^/\?[^/]\+/Types' || a:path =~ '^/\?[^/]\+/Users/[^/]\+/Types'
       if subtype == 'Spec'
         let type = 'TYPE_SPEC'
       elseif subtype == 'Body'

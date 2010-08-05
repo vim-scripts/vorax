@@ -1,4 +1,3 @@
-" Description: Utilities for VoraX
 " Mainainder: Alexandru Tica <alexandru.tica.at.gmail.com>
 " License: Apache License 2.0
 
@@ -178,15 +177,23 @@ function s:utils.CreateBufferMappings() dict
     nmap <buffer> <unique> <Leader>vb :VoraxExecBuffer<cr>
   endif
 
-  if mapcheck('<Leader>vd', 'n') == ""
+  if maparg('<Leader>vd', 'n') == ""
     nmap <buffer> <unique> <Leader>vd :VoraxDescribe<cr>
+  endif
+
+  if maparg('<Leader>vdv', 'n') == ""
+    nmap <buffer> <unique> <Leader>vdv :VoraxDescribeVerbose<cr>
   endif
 
   if mapcheck('<Leader>vg', 'n') == ""
     nmap <buffer> <unique> <Leader>vg :VoraxGotoDefinition<cr>
   endif
 
-  if mapcheck('<Leader>vd', 'v') == ""
+  if maparg('<Leader>vdv', 'v') == ""
+    xmap <buffer> <unique> <Leader>vdv :VoraxDescribeVerboseVisual<cr>
+  endif
+
+  if maparg('<Leader>vd', 'v') == ""
     xmap <buffer> <unique> <Leader>vd :VoraxDescribeVisual<cr>
   endif
 endfunction
@@ -250,61 +257,6 @@ function s:utils.FocusCandidateWindow() dict
   exe splitcmd
 endfunction
 
-" Opens for editing the provided database object.
-function s:utils.LocateDbObject(object) dict
-  let info = s:tk_db.ResolveDbObject(a:object)
-  let parts = split(a:object, '\.')
-  if has_key(info, 'schema')
-    redraw
-    echon self.Translate(g:vorax_messages['open_obj'], a:object)
-    let type = s:tk_db.DbType(info.type)
-    let fname = substitute(fnamemodify(tempname(), ':h:p:8'), '\\', '/', 'g') . '/_view_' . info.object . '.' . self.ExtensionForType(type)
-    call self.FocusCandidateWindow()
-    silent! exe 'edit ' . fname
-    " an already existing buffer in read only mode may be opened
-    setlocal modifiable
-    call vorax#InitBuffer()
-    " clear buffer
-    normal ggdG
-    " get source
-    let result = s:tk_db.GetSource(type, info.object, "'" . info.schema . "'")
-    call append(0, result)
-    " delete the leading blanks from the first line... the dbms_metadata.getddl
-    " puts some blanks before the CREATE statement
-    :1s/^\s*//
-    " clear the previous highlight
-    :nohlsearch
-    :w!
-    if info.type == 9
-      " this is a package
-      let submodule = substitute(parts[-1], '"', '', 'g')
-      if  submodule !=? info.object
-        redraw
-        echo self.Translate(g:vorax_messages['search_for'], submodule) 
-        call s:LocateSubmodule(submodule, join(result, "\n"))
-      endif
-    else
-      " go to the start of the buffer
-      normal gg
-    endif
-    " set the buffer as read only
-    setlocal nomodifiable
-  endif
-  redraw
-  echo g:vorax_messages['done']
-endfunction
-
-function s:LocateSubmodule(submodule, source)
-  let submodule = substitute(a:submodule, '"', '', 'g')
-  let pkg_info = s:tk_parser.SubmodulesInfo(a:source)
-  for data in pkg_info
-    if data.object ==? a:submodule
-      silent exe 'normal ' . data.start_line . 'G'
-      " don't break because we want the last definition to be showed
-    endif
-  endfor
-endfunction
-
 " Get the corresponding file extension for the provided
 " object type. The file extension is returned according to
 " the g:vorax_dbexplorer_file_extensions variable.
@@ -319,14 +271,6 @@ endfunction
 
 " Get the tools object
 function Vorax_UtilsToolkit()
-  if !exists('s:tk_db')
-    let s:tk_db = {}
-    let s:tk_db = Vorax_DbLayerToolkit()
-  endif
-  if !exists('s:tk_parser')
-    let s:tk_parser = {}
-    let s:tk_parser = Vorax_ParserToolkit()
-  endif
   return s:utils
 endfunction
 

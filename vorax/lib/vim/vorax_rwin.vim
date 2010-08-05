@@ -16,6 +16,14 @@ if g:vorax_debug
   silent! let s:log = log#getLogger(expand('<sfile>:t'))
 endif
 
+runtime! vorax/lib/vim/vorax_utils.vim
+runtime! vorax/lib/vim/vorax_dblayer.vim
+
+let s:interface = Vorax_GetInterface()
+let s:tk_utils = Vorax_UtilsToolkit()
+let s:tk_db = Vorax_DbLayerToolkit()
+
+
 " Mark this as loaded
 let g:vorax_rwin = 1
 
@@ -66,6 +74,29 @@ function s:rwin.FocusResultsWindow() dict
   silent! call s:log.trace('end s:rwin.FocusResultsWindow()')
 endfunction
 
+function s:RegisterKeys()
+  noremap <buffer> L :call <SID>ToggleLogging()<cr>
+  if maparg('<Leader>vd', 'n') == ""
+    nmap <buffer> <unique> <Leader>vd :VoraxDescribe<cr>
+  endif
+
+  if maparg('<Leader>vdv', 'n') == ""
+    nmap <buffer> <unique> <Leader>vdv :VoraxDescribeVerbose<cr>
+  endif
+
+  if mapcheck('<Leader>vg', 'n') == ""
+    nmap <buffer> <unique> <Leader>vg :VoraxGotoDefinition<cr>
+  endif
+
+  if maparg('<Leader>vdv', 'v') == ""
+    xmap <buffer> <unique> <Leader>vdv :VoraxDescribeVerboseVisual<cr>
+  endif
+
+  if maparg('<Leader>vd', 'v') == ""
+    xmap <buffer> <unique> <Leader>vd :VoraxDescribeVisual<cr>
+  endif
+endfunction
+
 " Usually called after executing something and
 " the results has to be displayed. Basically, this function
 " opens/focuses the results window. If monitor=1 then it 
@@ -85,11 +116,10 @@ function s:rwin.ShowResults(monitor) dict
   setlocal buftype=nofile
   setlocal nowrap
   setlocal foldcolumn=0
-  setlocal nobuflisted
   setlocal nospell
   setlocal nonu
   setlocal cursorline
-  noremap <buffer> L :call <SID>ToggleLogging()<cr>
+  call s:RegisterKeys()
   " highlight errors
   match ErrorMsg /^\(ORA-\|SP-\).*/
   redraw
@@ -134,8 +164,8 @@ function s:StopMonitor()
   call s:rwin.FocusResultsWindow()
   mapclear <buffer>
   imapclear <buffer>
-  " still, the logging key should be in place
-  noremap <buffer> L :call <SID>ToggleLogging()<cr>
+  " still, the registered keys should remain
+  call s:RegisterKeys()
   au VoraX CursorHold <buffer> call s:FetchResults()
   autocmd! VoraX CursorHold <buffer>
   silent! call s:log.debug('RWin Monitor stopped.')
@@ -286,6 +316,7 @@ function s:rwin.SpitOutput(output) dict
   endif
   normal G$
   call append(index, a:output)
+  exe 'normal ' . (index == 0 ? 1 : index) . 'G'
   " if logging enabled then log
   if g:vorax_logging
     " an empty line just to nicely separate consequent execs
@@ -366,20 +397,5 @@ endfunction
 
 " Get the rwin object
 function Vorax_RwinToolkit()
-  if !exists('s:interface')
-    " import interface
-    let s:interface = {}
-    let s:interface = Vorax_GetInterface()
-  endif
-  if !exists('s:tk_utils')
-    " import utils
-    let s:tk_utils = {}
-    let s:tk_utils = Vorax_UtilsToolkit()
-  endif
-  if !exists('s:tk_db')
-    " import the database layer
-    let s:tk_db = {}
-    let s:tk_db = Vorax_DbLayerToolkit()
-  endif
   return s:rwin
 endfunction

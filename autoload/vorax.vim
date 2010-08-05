@@ -26,6 +26,9 @@ if s:ruby_lib_dir != ""
   ruby Dir[VIM::evaluate('s:ruby_lib_dir')+"*.rb"].each {|file| require file}
 endif
 
+" The location of the sql script directory
+let s:sql_dir = substitute(fnamemodify(finddir('vorax/sql', fnamemodify(&rtp, ':p:8')), ':p:8'), '\', '/', 'g')
+
 " The interface object
 let s:interface = Vorax_GetInterface()
 
@@ -97,7 +100,13 @@ function! vorax#Exec(cmd, show, feedback)
         endif
         call s:interface.send(s:interface.pack(dbcommand))
       else
-        return s:tk_db.Exec(dbcommand, a:feedback)
+        let result = s:tk_db.Exec(dbcommand, a:feedback)
+        if a:feedback != ""
+          "clear feedback
+          redraw
+          echon ""
+        endif
+        return result
       endif
       if s:interface.last_error == ""
         if a:show
@@ -168,6 +177,11 @@ function! vorax#Connect(cstr)
   try
     let result = s:tk_db.Connect(a:cstr)
     call s:tk_rwin.SpitOutput(result)
+    if g:vorax_open_scratch_at_connect && bufnr('__scratch__.sql') == -1 && s:tk_db.connected
+      " if not already opened
+      call s:tk_utils.FocusCandidateWindow()
+      silent e! __scratch__.sql
+    endif
     redraw
     echo g:vorax_messages['done']
   catch /^VRX-1/
@@ -287,9 +301,42 @@ function! vorax#Describe(object)
   let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ 'desc ' . object . ";\n" 
-        \ , 0, "")
+        \ , 0, g:vorax_messages['reading'])
   call s:tk_rwin.SpitOutput(result)
+  redraw
+  echo g:vorax_messages['done']
   silent! call s:log.trace('end of vorax#Describe(object)')
+endfunction
+
+" Describes the provided database object. If no object is given then the
+" word under cursor is used.
+function! vorax#DescribeVerbose(object)
+  silent! call s:log.trace('start of vorax#VerboseDescribeTable(object)')
+  silent! call s:log.trace('object='.a:object)
+  let object = a:object
+  if object == ""
+    let isk_bak = &isk
+    " the $ and # should be considered as part of an word
+    set isk=@,48-57,_,$,#
+    let object = expand('<cword>')
+    silent! call s:log.trace('computed object under cursor='.object)
+    exe 'set isk=' . isk_bak
+  endif
+  " check the object type
+  let info = s:tk_db.ResolveDbObject(object)
+  if has_key(info, 'schema') && (info.type == 2 || info.type == 4)
+    let result = vorax#Exec(
+          \ '@ ' . s:sql_dir . "/desc_table.sql" . " " . shellescape(info.schema) . " " . shellescape(info.object)
+          \ , 0, g:vorax_messages['reading'])
+    call s:tk_rwin.SpitOutput(result)
+  else
+    redraw
+    call s:tk_utils.EchoErr(g:vorax_messages['invalid_desc'])
+    return
+  endif
+  redraw
+  echo g:vorax_messages['done']
+  silent! call s:log.trace('end of vorax#VerboseDescribeTable(object)')
 endfunction
 
 " Initialize a VoraX buffer
@@ -325,7 +372,7 @@ function vorax#GotoDefinition(object)
   else
     let object = a:object
   endif
-  call s:tk_utils.LocateDbObject(object)
+  call s:tk_db.LocateDbObject(object)
 endfunction
 
 
