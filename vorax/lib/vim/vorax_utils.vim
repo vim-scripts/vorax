@@ -165,6 +165,10 @@ endfunction
 " Create the mappings for a vorax buffer.
 function s:utils.CreateBufferMappings() dict
   " defines vorax mappings for the current buffer
+  if mapcheck('<Leader>vl', 'i') == ""
+    imap <buffer> <unique> <Leader>vl <Esc>:VoraxSearch<cr>
+  endif
+
   if mapcheck('<Leader>ve', 'n') == ""
     nmap <buffer> <unique> <Leader>ve :VoraxExecUnderCursor<cr>
   endif

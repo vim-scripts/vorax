@@ -23,3 +23,7 @@ if exists('loaded_taglist')
   let tlist_plsql_settings='sql;c:cursor;F:field;P:package;r:record;' .
         \ 's:subtype;t:table;T:trigger;v:variable;f:function;p:procedure'
 endif
+
+" take $# as word characters
+setlocal isk+=$
+setlocal isk+=#

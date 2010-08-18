@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "2.0"
+let g:loaded_vorax = "2.1"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -226,6 +226,9 @@ if !exists(':VoraxToggleConnWindow')
     nmap <unique> <script> <Plug>VoraxToggleConnWindow :VoraxToggleConnWindow<CR>
 endif
 
+if !exists(':VoraxSearch')
+    command! -nargs=0 VoraxSearch :call vorax#Search()
+endif
 """""""""""""""""""""""""""""""""""
 " Define mappings
 """""""""""""""""""""""""""""""""""

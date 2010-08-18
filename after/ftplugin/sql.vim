@@ -13,5 +13,7 @@ endif
 let utils = Vorax_UtilsToolkit()
 call utils.CreateBufferMappings()
 
-
+" take $# as word characters
+setlocal isk+=$
+setlocal isk+=#
 

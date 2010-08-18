@@ -131,6 +131,7 @@ function! s:Split(cmd, title, side, minWidth, minHeight) "{{{1
   "exe "setlocal wiw=" . a:minWidth
   "exe "setlocal wh=" . a:minHeight
   exe a:cmd
+  let bufnr = bufnr('^' . a:title . '$')
   silent! exec 'edit ' . a:title
   let &splitright = SPR
   let &splitbelow = SPB

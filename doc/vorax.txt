@@ -12,7 +12,8 @@
 	   Mappings .............................. |vorax-mappings|
 	   Configuration .................... |vorax-configuration|
 	   Using DbExplorer .................... |vorax-dbexplorer|
-	   Using the Connection Window ....... |vorax-conn-window|
+	   Using the Connection Window ........ |vorax-conn-window|
+	   Using the the Fuzzy Search  ....... |vorax-fuzzy-search|
 	   Integration ........................ |vorax-integration|
 
 VoraX aims to be a simple, yet a powerful IDE for Oracle databases. Instead of
@@ -20,7 +21,7 @@ reinventing the wheel, VoraX relies on the well-known SqlPLUS which is
 actually used to connect to the database, to execute and to get the results
 from the target Oracle server. However, this interaction is hidden from the user 
 who just uses his/her Vim environment without knowing that, behind, an SqlPLUS
-process is doing all the work.
+process does all the work.
 
 The big advantage of this approach is that, in VoraX, almost all SqlPLUS commands 
 may be used without any problems. You can format columns, set pagination,
@@ -112,6 +113,9 @@ VoraX defines the following commands:
 
 :VoraxToggleConnWindow
 	-> Toggles the connection profiles window.
+
+:VoraxSearch
+	-> Fuzzy search for a database object name.
 ==============================================================================
 MAPPINGS 						      *vorax-mappings*
 
@@ -126,6 +130,7 @@ The default mappings for VoraX are:
 		  mode.
 <Leader>vg 	: Go to definition of the database object under cursor.
 <Leader>vo 	: Toggles the connection profiles window.
+<Leader>vl 	: While in insert mode start a vorax fuzzy search.
 
 ==============================================================================
 CONFIGURATION 						 *vorax-configuration*
@@ -243,7 +248,9 @@ USING DBEXPLORER 					     *vorax-dbexplorer*
 The DbExplorer may be used to browse database objects and to view/edit their
 definitions. To move through nodes use the standard vim navigation keys. To
 open a node you may press ENTER or the "o" key. To refresh a node you may
-use the "R" key.
+use the "R" key. Likewise, the describe mappings are also available within the
+tree. You can select the object you want and invoke describe directly from
+here.
 
 ==============================================================================
 USING THE CONNECTION WINDOW 			 	    *vorax-conn-window*
@@ -265,6 +272,36 @@ pressing the "q" key.
 The connection profiles file is always stored into:
 &rtp/vorax/config/_vorax_connections file.
 
+==============================================================================
+USING THE FUZZY SEARCH 			 	           *vorax-fuzzy-search*
+
+VoraX allows to fuzzy search for a database item. This may be quite handy when
+you don't know the complete name of the item but just a part of it. For
+example, suppose you want to increase the size of your flash recovery area and
+you don't know the exact name of the parameter. However, you know that there's
+a "recovery" word somewhere in between. So, your sql buffer may look like
+this:
+
+ALTER SYSTEM SET |<-- invoke fuzzy search here
+
+While still in insert mode invoke the fuzzy search using <Leader> vl and type
+there the word "recovery". You should recognize now the name of the search
+parameter: db_recovery_file_dest_size. Just select it, press ENTER and the
+parameter name will be inserted at the cursor position.
+
+The fuzzy list contains also the item type in order to be able to further
+select just the items type you want. For example, you may input:
+
+recovery;:param
+
+and just the parameters which contains the pattern "recovery" will be shown.
+You may customize the searchable database items by modifying the following sql
+script:
+
+&rt/vorax/sql/search.sql
+
+The VoraX fuzzy search feature depends on the FuzzyFinder plugin. Please see
+the next section about VoraX integration.
 ==============================================================================
 INTEGRATION 						    *vorax-integration*
 
@@ -292,5 +329,11 @@ tables).
 
 TagList plugin is available at:
 http://www.vim.org/scripts/script.php?script_id=273
+
+FuzzyFinder is a must plugin if you want to fuzzy search for various database
+items.
+
+FuzzyFinder is available at:
+http://www.vim.org/scripts/script.php?script_id=1984
 
 vim:ts=8 sw=8 noexpandtab tw=78 ft=help:

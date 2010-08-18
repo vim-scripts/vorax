@@ -23,6 +23,7 @@ function! Vorax_DbExplorerInit()
   let b:VrxTree_ColorFunction="Vorax_InitColors"  
   let b:VrxTree_OnLeafClick="Vorax_DbExplorerClick"
   let b:VrxTree_InitMappingsFunction="Vorax_InitMappings"
+  let b:VrxTree_pathSeparator='"'
   setlocal foldcolumn=0
   setlocal winfixwidth
   setlocal buftype=nofile
@@ -31,6 +32,7 @@ function! Vorax_DbExplorerInit()
   setlocal nonu
   setlocal cursorline
   setlocal noswapfile
+  setlocal hid
 endfunction
 
 " Toggle on/off the dbexplorer
@@ -80,6 +82,8 @@ endfunction
 function! Vorax_InitMappings()
 	noremap <silent> <buffer> o :call VrxTree_OpenNode()<CR>
 	noremap <silent> <buffer> R :call VrxTree_RefreshNode()<CR>
+	noremap <silent> <buffer> <Leader>vd :call <SID>DescribeCurrentObject(0)<CR>
+	noremap <silent> <buffer> <Leader>vdv :call <SID>DescribeCurrentObject(1)<CR>
 endfunction
 
 " Get the nodes corresponding to the provided path
@@ -90,12 +94,12 @@ function! Vorax_DbExplorerGetNodes(path)
   endif
   if a:path == &titlestring
     return s:GenericCategories(1)
-  elseif a:path =~ '^/\?[^/]\+/Users$'
+  elseif a:path =~ '^"\?[^"]\+"Users$'
     let result = vorax#Exec("select username from all_users order by 1;", 0, g:vorax_messages['reading'])
     return join(result, "\n")
-  elseif a:path =~ '^/\?[^/]\+/Users/[^/]\+$'
+  elseif a:path =~ '^"\?[^"]\+"Users"[^"]\+$'
     return s:GenericCategories(0)
-  elseif a:path =~ '^/\?[^/]\+/[^/]\+$' || a:path =~ '^/\?[^/]\+/Users/[^/]\+/[^/]\+$'
+  elseif a:path =~ '^"\?[^"]\+"[^"]\+$' || a:path =~ '^"\?[^"]\+"Users"[^"]\+"[^"]\+$'
     " a generic category under the current user or another one
     let category = s:ObjectType(a:path)
     let user = 'user'
@@ -105,19 +109,38 @@ function! Vorax_DbExplorerGetNodes(path)
     endif
     let result = vorax#Exec("select object_name from all_objects where owner = " . user . " and object_type = '" . category . "' order by 1;", 0, g:vorax_messages['reading'])
     return join(result, "\n")
-  elseif a:path =~ '^/\?[^/]\+/Packages/[^/]\+$' || a:path =~ '^/\?[^/]\+/Users/[^/]\+/Packages/[^/]\+$'
+  elseif a:path =~ '^"\?[^"]\+"Packages"[^"]\+$' || a:path =~ '^"\?[^"]\+"Users"[^"]\+"Packages"[^"]\+$'
     let user = 'user'
     let parts = split(a:path, b:VrxTree_pathSeparator)
     if len(parts) == 5
       let user = "'" . parts[-3] . "'"
     endif
-    echo user
     let package = s:ObjectName(a:path)
     let result = vorax#Exec("select distinct decode(type, 'PACKAGE', 'Spec', 'Body') from all_source where owner = " . user . " and name = '" . package . "' order by 1 desc;\n", 0, g:vorax_messages['reading'])
     if len(result) >= 1 && result[-1] == 'Body' 
       let result += ['Both']
     endif
     return join(result, "\n")
+  endif
+endfunction
+
+" Describes the selected object from the DbExplorer
+function s:DescribeCurrentObject(verbose)
+  let path = VrxTree_GetPathUnderCursor()
+  let object_name = s:ObjectName(path)
+  if object_name != 'Spec' && object_name != 'Body' && object_name != 'Both'
+    let user = ""
+    if (path =~ '^"\?[^"]\+"[^"]\+"' && path !~ '^"\?[^"]\+"Users"') || path =~ '^"\?[^"]\+"Users"[^"]\+"[^"]\+"'
+      let user = split(&titlestring, '@')[0]
+      if path =~ '^"\?[^"]\+"Users'
+        let user = split(path, b:VrxTree_pathSeparator)[2]
+      endif 
+      if !a:verbose
+        call vorax#Describe(user . '.' . object_name)
+      else
+        call vorax#DescribeVerbose(user . '.' . object_name)
+      endif
+    endif
   endif
 endfunction
 
@@ -167,20 +190,20 @@ function! Vorax_DbExplorerClick(path)
   let subtype = ""
   if object_name == 'Spec' || object_name == 'Body' || object_name == 'Both'
     let subtype = object_name
-    if a:path =~ '^/\?[^/]\+/Packages'
+    if a:path =~ '^"\?[^"]\+"Packages'
       let object_name = split(a:path, b:VrxTree_pathSeparator)[2]
-    elseif a:path =~ '^/\?[^/]\+/Users/[^/]\+/Packages'
+    elseif a:path =~ '^"\?[^"]\+"Users"[^"]\+"Packages'
       let object_name = split(a:path, b:VrxTree_pathSeparator)[-2]
     endif
   endif
   echon s:utils.Translate(g:vorax_messages['load_wait'], object_name)
-  if a:path =~ '^/\?[^/]\+/[^/]\+/'
+  if a:path =~ '^"\?[^"]\+"[^"]\+"'
     let type = s:ObjectType(a:path)
     let user = 'user'
-    if a:path =~ '^/\?[^/]\+/Users'
+    if a:path =~ '^"\?[^"]\+"Users'
       let user = "'" . split(a:path, b:VrxTree_pathSeparator)[2] . "'"
     endif 
-    if a:path =~ '^/\?[^/]\+/Packages' || a:path =~ '^/\?[^/]\+/Users/[^/]\+/Packages'
+    if a:path =~ '^"\?[^"]\+"Packages' || a:path =~ '^"\?[^"]\+"Users"[^"]\+"Packages'
       if subtype == 'Spec'
         let type = 'PACKAGE_SPEC'
       elseif subtype == 'Body'
@@ -188,7 +211,7 @@ function! Vorax_DbExplorerClick(path)
       elseif subtype == 'Both'
         let type = 'PACKAGE'
       endif
-    elseif a:path =~ '^/\?[^/]\+/Types' || a:path =~ '^/\?[^/]\+/Users/[^/]\+/Types'
+    elseif a:path =~ '^"\?[^"]\+"Types' || a:path =~ '^"\?[^"]\+"Users"[^"]\+"Types'
       if subtype == 'Spec'
         let type = 'TYPE_SPEC'
       elseif subtype == 'Body'
@@ -278,6 +301,6 @@ endfunction
 
 " Get the object name corresponding to the provide path
 function s:ObjectName(path)
-  return substitute(a:path, '.*/', '', 'g')
+  return substitute(a:path, '.*"', '', 'g')
 endfunction
 

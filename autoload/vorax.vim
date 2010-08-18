@@ -56,11 +56,19 @@ let s:processed_plsql_objects = []
 " last fg exec command was executed.
 let s:exec_from_buffer = bufnr('%')
 
+" Just let vim know that we are dealing with an Oracle database
+let g:sql_type_default = 'sqloracle'
+
 " Enable logging
 if g:vorax_debug
   silent! call log#init('ALL', ['~/vorax.log'])
   silent! let s:log = log#getLogger(expand('<sfile>:t'))
 endif
+
+function vorax#Search()
+  let search_tk = Vorax_SearchToolkit()
+  call search_tk.find()
+endfunction
 
 " Executes the provided sql command. If a:show is 1 then the output
 " is displayed within the results window. If a:show is 0 then nothing is
@@ -293,7 +301,7 @@ function! vorax#Describe(object)
   if object == ""
     let isk_bak = &isk
     " the $ and # should be considered as part of an word
-    set isk=@,48-57,_,$,#
+    set isk=@,48-57,_,$,#,.,\"
     let object = expand('<cword>')
     silent! call s:log.trace('computed object under cursor='.object)
     exe 'set isk=' . isk_bak
@@ -317,7 +325,7 @@ function! vorax#DescribeVerbose(object)
   if object == ""
     let isk_bak = &isk
     " the $ and # should be considered as part of an word
-    set isk=@,48-57,_,$,#
+    set isk=@,48-57,_,$,#,.,\"
     let object = expand('<cword>')
     silent! call s:log.trace('computed object under cursor='.object)
     exe 'set isk=' . isk_bak
