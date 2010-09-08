@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "2.1"
+let g:loaded_vorax = "2.2"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -136,6 +136,9 @@ if !exists('g:vorax_messages')
                         \  "passwd_repo_not_ready"            : "A repository with passwords was not initialized yet. VoraX will create one now...",
                         \  "passwd_retry_exceeded"            : "Too many password retries. Give up...",
                         \  "invalid_desc"                     : "Cannot describe this object.",
+                        \  "no_prev_stmt"                     : "No previous statement to execute.",
+                        \  "vorax_fuzzy_prompt"               : "VoraX Search: ",
+                        \  "fuzzy_build"                      : "Please wait... Building dictionary for: ",
                         \}
 endif
 
@@ -166,6 +169,14 @@ if !exists('g:vorax_store_passwords')
   " whenever or not VoraX should automatically store Oracle
   " passwords in a safe way.
   let g:vorax_store_passwords = 0
+endif
+
+if !exists('g:vorax_min_fuzzy_chars')
+  " the minimum number of characters the user should type in
+  " order to fetch the list of searchable objects from the
+  " database. Please don't set this variable to a value
+  " lower than 3.
+  let g:vorax_min_fuzzy_chars = 3
 endif
 
 if !exists('g:vorax_debug')

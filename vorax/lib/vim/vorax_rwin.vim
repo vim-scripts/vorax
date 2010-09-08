@@ -28,7 +28,7 @@ let s:tk_db = Vorax_DbLayerToolkit()
 let g:vorax_rwin = 1
 
 " The rwin object reference
-let s:rwin = {}
+let s:rwin = {'last_statement' : {'cmd' : '', 'type' : ''} }
 
 " This variable is used internally when results from the
 " interface are put back together
@@ -74,8 +74,27 @@ function s:rwin.FocusResultsWindow() dict
   silent! call s:log.trace('end s:rwin.FocusResultsWindow()')
 endfunction
 
+" Reexecute the last executed statement
+function s:ReExec()
+  if !s:interface.more
+    " only if no statement exec is in progress
+    if s:rwin.last_statement.cmd != ""
+      if s:rwin.last_statement.type == 'oracle'
+        " a regular oracle statement
+        call vorax#Exec(s:rwin.last_statement.cmd, 1, g:vorax_messages['executing'])
+      elseif s:rwin.last_statement.type == 'vim'
+        " a vim statement (these come especially from desc commands)
+        exe s:rwin.last_statement.cmd
+      endif
+    else
+      call s:tk_utils.EchoErr(g:vorax_messages['no_prev_stmt'])
+    endif
+  endif
+endfunction
+
 function s:RegisterKeys()
   noremap <buffer> L :call <SID>ToggleLogging()<cr>
+  noremap <buffer> R :call <SID>ReExec()<cr>
   if maparg('<Leader>vd', 'n') == ""
     nmap <buffer> <unique> <Leader>vd :VoraxDescribe<cr>
   endif
@@ -119,6 +138,7 @@ function s:rwin.ShowResults(monitor) dict
   setlocal nospell
   setlocal nonu
   setlocal cursorline
+  setlocal modifiable
   call s:RegisterKeys()
   " highlight errors
   match ErrorMsg /^\(ORA-\|SP-\).*/

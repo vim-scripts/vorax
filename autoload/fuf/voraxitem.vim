@@ -5,7 +5,6 @@ endif
 let g:loaded_autoload_fuf_voraxitem = 1
 
 let s:sql_dir = substitute(fnamemodify(finddir('vorax/sql', fnamemodify(&rtp, ':p:8')), ':p:8'), '\', '/', 'g')
-let s:min_pattern = 3
 
 function fuf#voraxitem#createHandler(base)
   return a:base.concretize(copy(s:handler))
@@ -64,17 +63,23 @@ function s:handler.makePreviewLines(word, count)
 endfunction
 
 function s:handler.getCompleteItems(patternPrimary)
-  if len(a:patternPrimary) == s:min_pattern && !exists('s:items')
-    echo 'Building dictionary for [' . a:patternPrimary . ']. Please wait...'
-    let s:items = vorax#Exec('@' . s:sql_dir .  "/search.sql " .shellescape(toupper(a:patternPrimary)), 'Loading items...', 0)
+  if g:vorax_min_fuzzy_chars < 3
+    " the minumum typed chars must not be lower than 3
+    let g:vorax_min_fuzzy_chars = 3
+  endif
+  if len(a:patternPrimary) == g:vorax_min_fuzzy_chars && !exists('s:items')
+    " escape special LIKE chars
+    let pattern = substitute(a:patternPrimary, '\(%\|_\)', '`\1', 'g')
+    echo g:vorax_messages['fuzzy_build'] . pattern  
+    let s:items = vorax#Exec('@' . s:sql_dir .  "/search.sql " .shellescape(toupper(pattern)), 'Loading items...', 0)
     call map(s:items, 'fuf#makeNonPathItem(v:val, "")')
     call fuf#mapToSetSerialIndex(s:items, 1)
     echo 'Done'
     return s:items
   else
-    if exists('s:items') && len(a:patternPrimary) < s:min_pattern 
+    if exists('s:items') && len(a:patternPrimary) < g:vorax_min_fuzzy_chars 
       unlet s:items
-    elseif exists('s:items') && len(a:patternPrimary) > s:min_pattern 
+    elseif exists('s:items') && len(a:patternPrimary) > g:vorax_min_fuzzy_chars 
       return s:items
     endif
   endif

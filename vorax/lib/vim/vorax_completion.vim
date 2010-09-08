@@ -1519,6 +1519,7 @@ function s:ParamsFor(owner, module, submodule)
         \ (a:module != "" ? " and package_name ='" . a:module . "'" : "") .
         \ " and object_name ='" . toupper(a:submodule) . "'" .
         \ " and argument_name is not null " .
+        \ " and data_level = 0 " .
         \ " order by overload, position;" 
         \ , 0, "")
   return result

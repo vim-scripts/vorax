@@ -80,7 +80,7 @@ function s:db.Connect(cstr) dict
       let all_cmd .= cmd . "\n"
     endfor
     " save current sqlplus settings and prepare sqlplus for a silent exec
-    let save_cmd = 'store set ' . s:fset . " replace\n" .
+    let save_cmd = 'store set ' . s:interface.convert_path(s:fset) . " replace\n" .
           \  "set echo off\n" .
           \  "set feedback off\n" .
           \  "set autotrace off\n" .
@@ -105,8 +105,8 @@ function s:db.Connect(cstr) dict
         let result = self.ReadAll(status)
         silent! call s:log.debug('Output: '. string(result))
         " restore the previous saved settings
-        silent! call s:log.debug('Restore sqlplus settings by running: @' . s:fset)
-        call s:interface.send('@' . s:fset)
+        silent! call s:log.debug('Restore sqlplus settings by running: @' . s:interface.convert_path(s:fset))
+        call s:interface.send('@' . s:interface.convert_path(s:fset))
         " execute header
         silent! call s:log.debug('About to execute header.')
         let all_cmd = ""
@@ -225,7 +225,7 @@ function s:db.Exec(cmd, feedback) dict
   silent! call s:log.debug('cmd='.a:cmd)
   let result = []
   " save current sqlplus settings and prepare sqlplus for a silent exec
-  call s:interface.send(s:interface.pack('store set ' . s:fset . " replace\n" .
+  call s:interface.send(s:interface.pack('store set ' . s:interface.convert_path(s:fset) . " replace\n" .
         \  "set echo off\n" .
         \  "set feedback off\n" .
         \  "set autotrace off\n" .
@@ -233,6 +233,7 @@ function s:db.Exec(cmd, feedback) dict
         \  "set heading off\n" .
         \  "set linesize 10000\n" .
         \  "set verify off\n" .
+        \  "set array 500\n" .
         \  "set emb on pages 0 newp none\n"))
   if s:interface.last_error == ""
     try
@@ -244,7 +245,7 @@ function s:db.Exec(cmd, feedback) dict
         " if no errors then read the output
         let result = self.ReadAll(a:feedback)
         " restore the previous saved settings
-        call s:interface.send(s:interface.pack('@' . s:fset))
+        call s:interface.send(s:interface.pack('@' . s:interface.convert_path(s:fset)))
         if s:interface.last_error == ""
           " if no errors then consume the output
           call self.ReadAll(a:feedback)

@@ -22,7 +22,7 @@ class UnixPIO
     begin
       while c = @reader.read_nonblock(1000)
         buf << c if c
-        return buf if buf.length == BUF_SIZE
+        return buf if buf.length >= BUF_SIZE
       end
     rescue
     end

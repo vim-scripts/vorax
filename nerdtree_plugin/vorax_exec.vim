@@ -20,7 +20,12 @@ function! NERDTreeVoraxExec()
     if exists('*Vorax_UtilsToolkit')
       let utils = Vorax_UtilsToolkit()
       if utils.Managed(cmd)
-        call vorax#Exec('@' . cmd, 1, "")
+        " The interface object
+        let interface = Vorax_GetInterface()
+        if interface != {}
+          " only if there's a valid interface
+          call vorax#Exec('@' . interface.convert_path(cmd), 1, "")
+        endif
       else
         echo g:vorax_messages['wrong_file']
       endif

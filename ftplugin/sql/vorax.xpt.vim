@@ -85,6 +85,14 @@ for `var^ in `range^ loop
 end loop;
 ..XPT
 
+XPT declare
+declare
+  `declare_stuff^
+begin
+  `body^
+end;
+..XPT
+
 XPT begin
 begin
   `cursor^

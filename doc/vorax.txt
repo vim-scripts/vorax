@@ -13,6 +13,7 @@
 	   Configuration .................... |vorax-configuration|
 	   Using DbExplorer .................... |vorax-dbexplorer|
 	   Using the Connection Window ........ |vorax-conn-window|
+	   The output buffer ................ |vorax-output-buffer|
 	   Using the the Fuzzy Search  ....... |vorax-fuzzy-search|
 	   Integration ........................ |vorax-integration|
 
@@ -42,16 +43,21 @@ VoraX follows the standard procedure of installing a Vim plugin. However, you
 need to take care of some dependencies VoraX relies on:
 
 1. your vim must have ruby support enabled. In order to check this you may
-execute :version and look for +ruby.
-2. the anlr3 gem. You may install it using:
-	gem install antlr3 -r
-2. for Windows OS, besides ruby, you'll also need the win32-api gem. You may
+execute :version and look for +ruby. The supported ruby is ruby1.8. To check 
+this you may run:
+	:ruby puts $RUBY_VERSION
+CREAM configurations are not supported therefore a plain vim should be used. 
+2. ruby 1.8 (1.8.7 is the recommended version)
+3. rubygems (on Debian systems is as symple as: sudo apt-get install rubygems)
+4. for Windows OS, besides ruby, you'll also need the win32-api gem. You may
 install it using: 
 	gem install win32-api -r
-3. a working Oracle client with sqlplus, which has to be available in the
+5. the anlr3 gem. You may install it using:
+	gem install antlr3 -r
+6. a working Oracle client with sqlplus, which has to be available in the
 environment $PATH variable. The instant client with sqlplus should be just
 fine.
-4. optionaly, if you want to securely store passwords for your Oracle
+7. optionaly, if you want to securely store passwords for your Oracle
 connections then the openssl ruby extension must be available. On Ubuntu systems
 you may use the following command:
 	sudo apt-get install libopenssl-ruby1.8
@@ -119,17 +125,22 @@ VoraX defines the following commands:
 ==============================================================================
 MAPPINGS 						      *vorax-mappings*
 
-The default mappings for VoraX are:
+The default mappings for VoraX are shown below.
 
+Global mappings (normal mode):
 <Leader>vc 	: Request a connection to the database.
+<Leader>vo 	: Toggles the connection profiles window.
+<Leader>vv 	: Opens the database explorer tree.
+
+Sql/PLSQL local buffer mappings (normal mode):
 <Leader>ve 	: Executes statements (the current one or the selected ones).
 <Leader>vb 	: Executes all statements from the current buffer.
-<Leader>vv 	: Opens the database explorer tree.
 <Leader>vd 	: Describe the database object under cursor.
 <Leader>vdd 	: Describe the database object under cursor using the detailed
 		  mode.
 <Leader>vg 	: Go to definition of the database object under cursor.
-<Leader>vo 	: Toggles the connection profiles window.
+
+Sql/PLSQL local buffer mappings (insert mode):
 <Leader>vl 	: While in insert mode start a vorax fuzzy search.
 
 ==============================================================================
@@ -227,14 +238,22 @@ g:vorax_open_scratch_at_connect
 g:vorax_store_passwords
 	-> if this option is set then you may store passwords for your
 	database connections in a secure repository. First time you choose to
-	store a password, VoraX will create a secured repository for you and it'll
-	ask for a master password. After that, it's enough to provide this
-	master password and all the other passwords for your oracle
+	store a password, VoraX will create a secured repository for you and 
+	it'll ask for a master password. After that, it's enough to provide 
+	this master password and all the other passwords for your oracle
 	connections will be fetched from this repository. The
 	encoding/decoding mechanism is based on RSA keys which are
 	automatically generated into the user's home directory. This feature
 	needs the openssl extension for ruby. In Ubuntu for example you may
 	install it using: sudo apt-get install libopenssl-ruby1.8
+
+g:vorax_min_fuzzy_chars
+	-> this option is used to control the vorax fuzzy search feature.
+	Because a short search pattern will fetch a lot of database items
+	affecting the performance, the fuzzy search will not get anything from
+	the database unless the minimum characters specified by this variable
+	is typed. You are not allowed to set it to a value lower than 3. Yet, 
+	if you do it the value will be automatically reset to 3.
 
 g:vorax_debug
 	->  this variable controlls whenever or not to write into a log file.
@@ -249,7 +268,7 @@ The DbExplorer may be used to browse database objects and to view/edit their
 definitions. To move through nodes use the standard vim navigation keys. To
 open a node you may press ENTER or the "o" key. To refresh a node you may
 use the "R" key. Likewise, the describe mappings are also available within the
-tree. You can select the object you want and invoke describe directly from
+tree. You may select the object you want and invoke describe directly from
 here.
 
 ==============================================================================
@@ -269,8 +288,23 @@ your criteria. In order to connect using a profile just go on that line and
 press ENTER. As an additional mapping you may close the profiles window by
 pressing the "q" key.
 
-The connection profiles file is always stored into:
-&rtp/vorax/config/_vorax_connections file.
+The connection profiles file is always stored into: $HOME/_vorax_connections
+file.
+
+==============================================================================
+THE OUTPUT BUFFER      			 	          *vorax-output-buffer*
+
+The output of an executed statement is displayed into the so-called output
+buffer. This is a special buffer where you may inspect the result of your
+executed oracle command. The following key mappings are available within this
+window:
+
+<Leader>vd 	: Describe the database object under cursor.
+<Leader>vdd 	: Describe the database object under cursor using the detailed
+		  mode.
+<Leader>vg 	: Go to definition of the database object under cursor.
+L               : switch on/off logging for this window.
+R               : Refresh the window by re-executing the last statement.
 
 ==============================================================================
 USING THE FUZZY SEARCH 			 	           *vorax-fuzzy-search*

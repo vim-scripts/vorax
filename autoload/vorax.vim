@@ -79,7 +79,7 @@ endfunction
 " execute commands which requires user input using the sync method
 " because the call will indefinitelly wait for statement to complete.
 function! vorax#Exec(cmd, show, feedback)
-  silent! call s:log.trace('start of vorax#Exec(cmd, show)')
+  silent! call s:log.trace('start of vorax#Exec(cmd, show, feedback)')
   silent! call s:log.debug('cmd=['.a:cmd.'] show=['.a:show.']')
   let result = []
   if s:tk_db.connected
@@ -122,6 +122,7 @@ function! vorax#Exec(cmd, show, feedback)
           let s:exec_from_buffer = bufnr('%')
           silent! call s:log.debug('s:exec_from_buffer='.s:exec_from_buffer)
           " display results asynchronically
+          let s:tk_rwin.last_statement = {'cmd' : dbcommand, 'type' : 'oracle' }
           call s:tk_rwin.ShowResults(1)
         endif
       else
@@ -184,7 +185,9 @@ function! vorax#Connect(cstr)
   silent! call s:log.debug('cstr='.a:cstr)
   try
     let result = s:tk_db.Connect(a:cstr)
+    " reset the last executed statement
     call s:tk_rwin.SpitOutput(result)
+    let s:tk_rwin.last_statement = {'cmd' : '', 'type' : ''}
     if g:vorax_open_scratch_at_connect && bufnr('__scratch__.sql') == -1 && s:tk_db.connected
       " if not already opened
       call s:tk_utils.FocusCandidateWindow()
@@ -311,6 +314,7 @@ function! vorax#Describe(object)
         \ 'desc ' . object . ";\n" 
         \ , 0, g:vorax_messages['reading'])
   call s:tk_rwin.SpitOutput(result)
+  let s:tk_rwin.last_statement = {'cmd' : 'call vorax#Describe(''' . object . ''')', 'type' : 'vim'}
   redraw
   echo g:vorax_messages['done']
   silent! call s:log.trace('end of vorax#Describe(object)')
@@ -337,6 +341,7 @@ function! vorax#DescribeVerbose(object)
           \ '@ ' . s:sql_dir . "/desc_table.sql" . " " . shellescape(info.schema) . " " . shellescape(info.object)
           \ , 0, g:vorax_messages['reading'])
     call s:tk_rwin.SpitOutput(result)
+    let s:tk_rwin.last_statement = {'cmd' : 'call vorax#DescribeVerbose(''' . object . ''')', 'type' : 'vim'}
   else
     redraw
     call s:tk_utils.EchoErr(g:vorax_messages['invalid_desc'])

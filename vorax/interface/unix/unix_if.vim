@@ -10,7 +10,7 @@ endif
 " flag to signal this source was loaded
 let g:unix_interface = 1
 
-if has('unix')
+if has('unix') && !has('win32unix')
   
   " the vorax ruby lib location
   let s:vrx_lib = fnamemodify(findfile('vorax/interface/unix/vorax.rb', &rtp), ':p')
@@ -27,6 +27,9 @@ if has('unix')
   " define the interface object
   let s:interface = {'more' : 0, 'truncated' : 0, 'last_error' : ""}
 
+  " the last read line
+  let s:last_line = ""
+
   function s:interface.startup() dict
     " startup the interface
     let self.last_error = ""
@@ -40,7 +43,7 @@ if has('unix')
     " just consume the current output
     if self.last_error == ""
       let step = 1
-      while step <= 100
+      while step < 100
         call self.read()
         if !self.more || self.last_error != "" 
           break
@@ -48,9 +51,9 @@ if has('unix')
         sleep 50m
         let step += 1
       endwhile
-      if step == 1000 && self.more
-        " Give up after 1000 retries
-        self.last_error = "Timeout on initializing interface."
+      if step == 100 && self.more
+        " Give up after 100 retries
+        let self.last_error = "Timeout on initializing interface."
       endif
     endif
     let s:last_line = ""
@@ -125,6 +128,10 @@ EOF
     " write everything into a nice sql file
     call writefile(split(content, '\n'), s:temp_in) 
     return '@' . s:temp_in
+  endfunction
+
+  function s:interface.convert_path(path) dict
+    return a:path
   endfunction
 
   function s:interface.mark_end() dict
