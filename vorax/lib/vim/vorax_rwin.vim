@@ -95,6 +95,8 @@ endfunction
 function s:RegisterKeys()
   noremap <buffer> L :call <SID>ToggleLogging()<cr>
   noremap <buffer> R :call <SID>ReExec()<cr>
+  nmap <buffer> K :call vorax#OradocSearch(expand('<cword>'))<cr>
+  xmap <buffer> K :call vorax#OradocSearch(vorax#SelectedBlock())<cr>
   if maparg('<Leader>vd', 'n') == ""
     nmap <buffer> <unique> <Leader>vd :VoraxDescribe<cr>
   endif
@@ -114,6 +116,10 @@ function s:RegisterKeys()
   if maparg('<Leader>vd', 'v') == ""
     xmap <buffer> <unique> <Leader>vd :VoraxDescribeVisual<cr>
   endif
+
+  " User defined mappings
+  let handler = Vorax_GetEventHandler()
+  call handler.rwin_register_keys()
 endfunction
 
 " Usually called after executing something and

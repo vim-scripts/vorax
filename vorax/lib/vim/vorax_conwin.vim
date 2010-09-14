@@ -22,7 +22,7 @@ let g:vorax_cwin = 1
 " The rwin object reference
 let s:cwin = {}
 
-" The name of the vorax results buffer
+" The name of the file storing the connection profiles
 let s:conn_file = substitute(fnamemodify(expand('$HOME'), ':p:8') . '/_vorax_connections', '\\', '/', 'g')
 
 " Displays the connection window. 

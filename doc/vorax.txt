@@ -11,10 +11,13 @@
 	   Commands .............................. |vorax-commands|
 	   Mappings .............................. |vorax-mappings|
 	   Configuration .................... |vorax-configuration|
+	   Customizing key mappings ....... |vorax-custom-mappings|
 	   Using DbExplorer .................... |vorax-dbexplorer|
 	   Using the Connection Window ........ |vorax-conn-window|
 	   The output buffer ................ |vorax-output-buffer|
 	   Using the the Fuzzy Search  ....... |vorax-fuzzy-search|
+	   Explain plans  .................... |vorax-explain-plan|
+	   Search Oracle Documentation ......... |vorax-oracle-doc|
 	   Integration ........................ |vorax-integration|
 
 VoraX aims to be a simple, yet a powerful IDE for Oracle databases. Instead of
@@ -87,11 +90,27 @@ VoraX defines the following commands:
 	command to correctly detect this statement it is advisable to be used
 	in a sql buffer only.
 
+:VoraxExplainUnderCursor
+	-> get the explain plan for the statement where the cursor is. In order 
+	this command to correctly detect this statement it is advisable to be 
+	used in a sql buffer only.
+
+:VoraxExplainOnlyUnderCursor
+	-> get the explain only plan for the statement where the cursor is. In order 
+	this command to correctly detect this statement it is advisable to be 
+	used in a sql buffer only.
+
 :VoraxExecBuffer
 	-> executes all statements from the current buffer.
 
 :VoraxExecVisualSQL
 	-> executes the current selection.
+
+:VoraxExplainVisualSQL
+	-> explain plan for the selected statement.
+
+:VoraxExplainOnlyVisualSQL
+	-> explain only plan for the selected statement.
 
 :VoraxDbExplorer
 	-> opens the database explorer tree.
@@ -122,6 +141,14 @@ VoraX defines the following commands:
 
 :VoraxSearch
 	-> Fuzzy search for a database object name.
+
+:VoraxHelp [pattern]
+	-> Search the Oracle docs for the provided pattern.
+
+:VoraxHelpBuildIndex [path]
+	-> create the help index for the documentation located at the
+	provided path.
+
 ==============================================================================
 MAPPINGS 						      *vorax-mappings*
 
@@ -131,14 +158,21 @@ Global mappings (normal mode):
 <Leader>vc 	: Request a connection to the database.
 <Leader>vo 	: Toggles the connection profiles window.
 <Leader>vv 	: Opens the database explorer tree.
+<Leader>vh 	: Search/help for the provided pattern into
+                  the configured oracle docs.
 
 Sql/PLSQL local buffer mappings (normal mode):
 <Leader>ve 	: Executes statements (the current one or the selected ones).
+<Leader>vp 	: Explain plan for statement (the current one or the 
+                  selected one).
+<Leader>vpo 	: Explain only plan for statement (the current one or the 
+                  selected one).
 <Leader>vb 	: Executes all statements from the current buffer.
 <Leader>vd 	: Describe the database object under cursor.
 <Leader>vdd 	: Describe the database object under cursor using the detailed
 		  mode.
 <Leader>vg 	: Go to definition of the database object under cursor.
+K               : Oracledoc help for the word under cursor.
 
 Sql/PLSQL local buffer mappings (insert mode):
 <Leader>vl 	: While in insert mode start a vorax fuzzy search.
@@ -255,11 +289,72 @@ g:vorax_min_fuzzy_chars
 	is typed. You are not allowed to set it to a value lower than 3. Yet, 
 	if you do it the value will be automatically reset to 3.
 
+g:vorax_oradoc_geometry
+	-> this option is used to control the layout of the oradoc window. It
+	follows the same syntax as vim split command therefore you have
+	maximum of flexibility.
+
+g:vorax_oradoc_index_file
+	-> what is the name of the index file for the indexed documentation. By
+	default it's [user's home]/vorax_oradoc.idx.
+
+g:vorax_oradoc_config_file
+	-> what is the name for the oradoc(a.k.a. swish-e) config file. By
+	default is &rtp/vorax/oradoc/conf/vorax_oradoc.conf.
+
+g:vorax_oradoc_autoclose
+	-> this option may be used to control how the oradoc window should
+	behave when a documentation entry is opened. If this option is on (=1)
+	then the oradoc window will automatically close, otherwise it will
+	remain unchanged.
+
+g:vorax_oradoc_open_with
+	-> this option configures the external browser to be used when opening
+	a documentation entry.
+
 g:vorax_debug
 	->  this variable controlls whenever or not to write into a log file.
 	This feature depends on the log.vim plugin which is available on 
 	http://www.vim.org/scripts/script.php?script_id=2330 address. Pay
 	attention that this script should resie in the autoload directory.
+
+==============================================================================
+CUSTOMIZING KEY MAPPINGS                                *vorax-custom-mappings*
+
+If you don't like the default VoraX key mappings you are allowed to change
+them using a very simple mechanism. VoraX registers an event handler object
+(aka dictionary) with functions invoked in some well defined points within
+VoraX logic. You may overwrite these functions and provide your custom logic.
+At this moment the following functions are available:
+
+	buf_register_keys() => registers custom keys in sql/plsql buffers
+	rwin_register_keys() => custom keys for the results window
+	dbexplorer_register_keys() => custom keys for dbexplorer
+
+For example, if you want to use <Leader>d mapping for describing database
+objects instead of the default <Leader>vd you may put the following snippet
+into your .vimrc file:
+
+runtime! plugin/vorax.vim
+let s:vorax_handler = Vorax_GetEventHandler()
+
+function! s:vorax_handler.buf_register_keys() dict
+  if maparg('<Leader>d', 'n') == ""
+    nmap <buffer> <unique> <Leader>d :VoraxDescribe<cr>
+  endif
+endfunction
+
+function! s:vorax_handler.rwin_register_keys() dict
+  if maparg('<Leader>d', 'n') == ""
+    nmap <buffer> <unique> <Leader>d :VoraxDescribe<cr>
+  endif
+endfunction
+
+function! s:vorax_handler.dbexplorer_register_keys() dict
+  if maparg('<Leader>d', 'n') == ""
+    nmap <buffer> <unique> <Leader>d :call feedkeys("\<Leader>vd")<cr>
+  endif
+endfunction
 
 ==============================================================================
 USING DBEXPLORER 					     *vorax-dbexplorer*
@@ -336,6 +431,76 @@ script:
 
 The VoraX fuzzy search feature depends on the FuzzyFinder plugin. Please see
 the next section about VoraX integration.
+
+==============================================================================
+EXPLAIN PLANS    			 	           *vorax-explain-plan*
+
+VoraX allows you to get two kinds of explain plans for a statement: a detailed 
+one or a traceonly plan respectively. The corresponding default key mappings 
+are:
+
+<Leader> vp   : get a detailed explain plan
+<Leader> vpo  : get a traceonly explain plan
+
+The statement to be explained is assumed to be the one under cursor or the 
+visual selected text. Usually, the detailed explain plan implies that the
+statement is executed, whiles the traceonly shows just the most likely plan
+without running the query.
+
+The default VoraX implementation for getting the detailed explain plan relies 
+on the DBMS_XPLAN package. If this is not appropriate for your environment you 
+may change the &rtp/vorax/sql/explain.sql script and switch to AUTOTRACE or 
+other methods.
+
+The default implementation for traceonly explain plan relies on the AUTOTRACE
+sqlplus feature but you may change the whole logic by modifying the
+explain_only.sql file, located within &rtp/vorax/sql directory.
+
+==============================================================================
+SEARCH ORACLE DOCUMENTATION    			 	     *vorax-oracle-doc*
+
+You may quickly search for something into the Oracle html documentation
+directly in VoraX. However, if you want this feature, you have to configure it
+first.
+
+Oradoc search needs the "swish-e" tool which has to be installed on your
+computer. Swish-e executable must be in your $PATH. It is available for 
+download at:
+
+	http://swish-e.org/download/index.html
+
+You also need the oracle documentation pack for your server, documentation which 
+is usually available on the Oracle site. Unpack the documentation archive under 
+your desired directory or, for an easy configuration, directly under 
+&rtp/vorax/oradoc/public.
+
+Open VIM/VoraX (there's no need to connect to a database) and 
+   - if you have the documentation into &rtp/vorax/oradoc/public invoke:
+	:VoraxHelpBuildIndex
+
+   - if you have the oracle documentation into another non-default location: 
+	:VoraxHelpBuildIndex <dir_with_your_oracle_doc>
+
+The above command will start to index all the HTML files and, at the end, will
+provide several statistics. It may happen some parsing errors to be displayed
+but you should safely ignore them. The help indexing is a one time only
+operation and should not be done again unless you add or remove documentation.
+
+Now, everything is ready for searching. You may search for something using:
+
+	:VoraxHelp
+	:VoraxHelp <pattern>
+	
+	or
+
+	press K to get help for the word under cursor.
+
+If help references are found for the provided term then a special buffer will be
+opened. You may inspect there all these entries and, in order to see the help,
+you must select the corresponding entry and press ENTER or "o". The
+documentation page will be followed using your configured external browser.
+The browser to be used is set by g:vorax_oradoc_open_with global variable.
+
 ==============================================================================
 INTEGRATION 						    *vorax-integration*
 

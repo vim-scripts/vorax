@@ -165,19 +165,35 @@ endfunction
 " Create the mappings for a vorax buffer.
 function s:utils.CreateBufferMappings() dict
   " defines vorax mappings for the current buffer
-  if mapcheck('<Leader>vl', 'i') == ""
+  if maparg('<Leader>vl', 'i') == ""
     imap <buffer> <unique> <Leader>vl <Esc>:VoraxSearch<cr>
   endif
 
-  if mapcheck('<Leader>ve', 'n') == ""
+  if maparg('<Leader>ve', 'n') == ""
     nmap <buffer> <unique> <Leader>ve :VoraxExecUnderCursor<cr>
   endif
 
-  if mapcheck('<Leader>ve', 'v') == ""
+  if maparg('<Leader>ve', 'v') == ""
     xmap <buffer> <unique> <Leader>ve :VoraxExecVisualSQL<cr>
   endif
 
-  if mapcheck('<Leader>vb', 'n') == ""
+  if maparg('<Leader>vp', 'n') == ""
+    nmap <buffer> <unique> <Leader>vp :VoraxExplainUnderCursor<cr>
+  endif
+
+  if maparg('<Leader>vpo', 'n') == ""
+    nmap <buffer> <unique> <Leader>vpo :VoraxExplainOnlyUnderCursor<cr>
+  endif
+
+  if maparg('<Leader>vp', 'v') == ""
+    xmap <buffer> <unique> <Leader>vp :VoraxExplainVisualSQL<cr>
+  endif
+
+  if maparg('<Leader>vpo', 'v') == ""
+    xmap <buffer> <unique> <Leader>vpo :VoraxExplainOnlyVisualSQL<cr>
+  endif
+
+  if maparg('<Leader>vb', 'n') == ""
     nmap <buffer> <unique> <Leader>vb :VoraxExecBuffer<cr>
   endif
 
@@ -200,6 +216,14 @@ function s:utils.CreateBufferMappings() dict
   if maparg('<Leader>vd', 'v') == ""
     xmap <buffer> <unique> <Leader>vd :VoraxDescribeVisual<cr>
   endif
+
+  " mapping for get help for the word under cursor
+  nmap <buffer> K :call vorax#OradocSearch(expand('<cword>'))<cr>
+  xmap <buffer> K :call vorax#OradocSearch(vorax#SelectedBlock())<cr>
+
+  " User defined mappings
+  let handler = Vorax_GetEventHandler()
+  call handler.buf_register_keys()
 endfunction
 
 " Returns 1 if the provided filename is a vorax managed one,

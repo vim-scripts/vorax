@@ -44,8 +44,11 @@ let s:tk_rwin = Vorax_RwinToolkit()
 " Get the parser toolkit
 let s:tk_parser = Vorax_ParserToolkit()
 
-" Geth the connection window toolkit
+" Get the connection window toolkit
 let s:tk_cwin = Vorax_CwinToolkit()
+
+" Get the oradoc toolkit
+let s:oradoc = Vorax_OradocToolkit()
 
 " This variable contains all plsql_objects processed by the
 " last exec command in foreground mode. This is used to
@@ -65,6 +68,7 @@ if g:vorax_debug
   silent! let s:log = log#getLogger(expand('<sfile>:t'))
 endif
 
+" Invokes the fuzzy search feature
 function vorax#Search()
   let search_tk = Vorax_SearchToolkit()
   call search_tk.find()
@@ -148,6 +152,25 @@ function! vorax#Disconnect()
   silent! call s:log.trace('end of vorax#Disconnect')
 endfunction
 
+function vorax#OradocSearch(pattern)
+  if a:pattern == ''
+    " request a pattern
+    let pattern = input(g:vorax_messages['oradoc_prompt'])
+    if pattern == ''
+      " exit if no pattern was provided
+      call s:tk_utils.EchoErr(g:vorax_messages['no_pattern'])
+      return
+    endif
+  else
+    let pattern = a:pattern
+  endif
+  call s:oradoc.Search(pattern)
+endfunction
+
+function vorax#OradocBuild(dir)
+  call s:oradoc.Index(a:dir)
+endfunction
+
 " Get the currently selected block.
 function! vorax#SelectedBlock() range
     let save = @"
@@ -203,7 +226,7 @@ function! vorax#Connect(cstr)
   silent! call s:log.trace('end of vorax#Connect(cstr)')
 endfunction
 
-" Opens the db explorer window
+" Opens the connection profiles window
 function! vorax#ToggleConnWindow()
   silent! call s:log.trace('start of vorax#ToggleConWindow()')
   call s:tk_cwin.FocusWindow()
@@ -295,6 +318,42 @@ function! vorax#ShowLastCompileErrors()
   silent! call s:log.trace('end of vorax#ShowLastCompileErrors()')
 endfunction
 
+" Shows the explain plan for the provided sql (a:cmd). If the
+" a:only=1 then just a traceonly plan is gathered otherwise a detailed
+" plan is fetched.
+function! vorax#Explain(cmd, only)
+  silent! call s:log.trace('start of vorax#Explain(cmd)')
+  silent! call s:log.trace('cmd='.a:cmd)
+  let dbcommand = a:cmd
+  if dbcommand == ''
+    " the command is not provided... assume the under cursor
+    " statement
+    silent! call s:log.debug('No statement provided. Compute the one under cursor.')
+    let stmt = s:tk_utils.UnderCursorStatement()
+    let dbcommand = stmt[4]
+  endif
+  " remove trailing blanks from cmd
+  let dbcommand = substitute(dbcommand, '\_s*\_$', '', 'g')
+  " add the delimitator
+  let dbcommand .= s:tk_db.Delimitator(dbcommand)
+  silent! call s:log.debug('statement='.dbcommand)
+  let temp_in = fnamemodify(tempname(), ':p:h') . '/vorax_temp_in.sql'
+  call writefile(split(dbcommand, '\n'), temp_in) 
+  if a:only
+    " get a traceonly plan
+    let vrx_script = s:interface.convert_path(s:sql_dir. "/explain_only.sql")
+  else
+    " get the detailed plan
+    let vrx_script = s:interface.convert_path(s:sql_dir. "/explain.sql")
+  endif
+  let explain_command = "@" . vrx_script . ' ' . shellescape(s:interface.convert_path(temp_in))
+  silent! call s:log.debug('explain_command='.explain_command)
+  " save sqlplus state
+  call s:tk_db.SaveSqlplusState()
+  call vorax#Exec(explain_command, 1, g:vorax_messages['executing'])
+  call s:tk_db.RestoreSqlplusState()
+endfunction
+
 " Describes the provided database object. If no object is given then the
 " word under cursor is used.
 function! vorax#Describe(object)
@@ -337,8 +396,9 @@ function! vorax#DescribeVerbose(object)
   " check the object type
   let info = s:tk_db.ResolveDbObject(object)
   if has_key(info, 'schema') && (info.type == 2 || info.type == 4)
+    let vrx_script = s:interface.convert_path(s:sql_dir. "/desc_table.sql")
     let result = vorax#Exec(
-          \ '@ ' . s:sql_dir . "/desc_table.sql" . " " . shellescape(info.schema) . " " . shellescape(info.object)
+          \ '@ ' . vrx_script . " " . shellescape(info.schema) . " " . shellescape(info.object)
           \ , 0, g:vorax_messages['reading'])
     call s:tk_rwin.SpitOutput(result)
     let s:tk_rwin.last_statement = {'cmd' : 'call vorax#DescribeVerbose(''' . object . ''')', 'type' : 'vim'}

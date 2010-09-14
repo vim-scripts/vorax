@@ -25,6 +25,7 @@ function fuf#voraxitem#onInit()
 endfunction
 
 function fuf#voraxitem#launch(initialPattern, partialMatching, prompt, listener)
+  let s:interface = Vorax_GetInterface()
   let s:prompt = (empty(a:prompt) ? '>' : a:prompt)
   let s:listener = a:listener
   if exists('s:items')
@@ -71,7 +72,8 @@ function s:handler.getCompleteItems(patternPrimary)
     " escape special LIKE chars
     let pattern = substitute(a:patternPrimary, '\(%\|_\)', '`\1', 'g')
     echo g:vorax_messages['fuzzy_build'] . pattern  
-    let s:items = vorax#Exec('@' . s:sql_dir .  "/search.sql " .shellescape(toupper(pattern)), 'Loading items...', 0)
+    let vrx_script = s:interface.convert_path(s:sql_dir. "/search.sql")
+    let s:items = vorax#Exec('@' . vrx_script . "  " .shellescape(toupper(pattern)), 'Loading items...', 0)
     call map(s:items, 'fuf#makeNonPathItem(v:val, "")')
     call fuf#mapToSetSerialIndex(s:items, 1)
     echo 'Done'

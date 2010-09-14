@@ -219,20 +219,37 @@ function s:db.Delimitator(cmd) dict
   endif
 endfunction
 
+" Save the current options set for sqlplus environment
+function s:db.SaveSqlplusState() dict
+  call s:interface.send('store set ' . s:interface.convert_path(s:fset) . " replace\n")
+  " consume the output
+  call s:interface.mark_end()
+  if s:interface.last_error == ""
+    " if no errors then consume the output
+    call self.ReadAll('')
+  endif
+endfunction
+
+" Restore a previous saved sqlplus state
+function s:db.RestoreSqlplusState() dict
+  call s:interface.send('@' . s:interface.convert_path(s:fset))
+endfunction
+
 " This function is used to silently execute a command.
 function s:db.Exec(cmd, feedback) dict
   silent! call s:log.trace('start of s:db.Exec(cmd)')
   silent! call s:log.debug('cmd='.a:cmd)
   let result = []
   " save current sqlplus settings and prepare sqlplus for a silent exec
-  call s:interface.send(s:interface.pack('store set ' . s:interface.convert_path(s:fset) . " replace\n" .
-        \  "set echo off\n" .
+  call self.SaveSqlplusState()
+  call s:interface.send(s:interface.pack("set echo off\n" .
         \  "set feedback off\n" .
         \  "set autotrace off\n" .
         \  "set pagesize 9999\n" .
         \  "set heading off\n" .
         \  "set linesize 10000\n" .
         \  "set verify off\n" .
+        \  "set termout on\n" .
         \  "set array 500\n" .
         \  "set emb on pages 0 newp none\n"))
   if s:interface.last_error == ""
@@ -245,10 +262,11 @@ function s:db.Exec(cmd, feedback) dict
         " if no errors then read the output
         let result = self.ReadAll(a:feedback)
         " restore the previous saved settings
-        call s:interface.send(s:interface.pack('@' . s:interface.convert_path(s:fset)))
+        call self.RestoreSqlplusState()
+        call s:interface.mark_end()
         if s:interface.last_error == ""
           " if no errors then consume the output
-          call self.ReadAll(a:feedback)
+          call self.ReadAll('')
         endif
       endif
     catch /^VRX-READ/

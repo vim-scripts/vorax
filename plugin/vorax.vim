@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "2.2"
+let g:loaded_vorax = "2.3"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -139,6 +139,10 @@ if !exists('g:vorax_messages')
                         \  "no_prev_stmt"                     : "No previous statement to execute.",
                         \  "vorax_fuzzy_prompt"               : "VoraX Search: ",
                         \  "fuzzy_build"                      : "Please wait... Building dictionary for: ",
+                        \  "no_help"                          : "Sorry! No help for this.",
+                        \  "help_search_error"                : "Error in search!",
+                        \  "no_pattern"                       : "No pattern provided.",
+                        \  "oradoc_prompt"                    : "OraDoc Search: ",
                         \}
 endif
 
@@ -179,6 +183,39 @@ if !exists('g:vorax_min_fuzzy_chars')
   let g:vorax_min_fuzzy_chars = 3
 endif
 
+if !exists('g:vorax_oradoc_geometry')
+  " The geometry for the oradoc window. 
+  " The syntax is the same as for split
+  let g:vorax_oradoc_geometry = "botright 10"
+endif
+
+if !exists('g:vorax_oradoc_index_file')
+  " The location for the documentation index.
+  let g:vorax_oradoc_index_file = substitute(fnamemodify(expand('$HOME'), ':p:8') . '/vorax_oradoc.idx', '\\', '/', 'g')
+endif
+
+if !exists('g:vorax_oradoc_config_file')
+  " The swish-e config file.
+  let g:vorax_oradoc_config_file = substitute(fnamemodify(finddir('vorax/oradoc/conf', fnamemodify(&rtp, ':p:8')) . '/vorax_oradoc.conf', ':p:8'), '\', '/', 'g')
+endif
+
+if !exists('g:vorax_oradoc_autoclose')
+  " Wherever or not the oradoc window to be automatically closed
+  " after opening a doclink
+  let g:vorax_oradoc_autoclose = 0
+endif
+
+if !exists('g:vorax_oradoc_open_with')
+  " The browser to be used when openning a documentation link. The
+  " placeholder for link is %u
+  if has('win32')
+    let g:vorax_oradoc_open_with = 'silent! !start C:\Program Files\Internet Explorer\iexplore.exe %u'
+  elseif has('unix')
+    " asume firefox executable is in your $PATH
+    let g:vorax_oradoc_open_with = "silent! !firefox -remote 'ping()' && firefox -remote 'openURL( %u )' || firefox '%u' &"
+  endif
+endif
+
 if !exists('g:vorax_debug')
   " Whenever or not to write into a log file. This
   " feature relies to the existance of the log.vim
@@ -195,8 +232,26 @@ if !exists(':VoraxConnect')
     nmap <unique> <script> <Plug>VoraxConnect :VoraxConnect<CR>
 endif
 
+if !exists(':VoraxHelp')
+    command! -nargs=? VoraxHelp :call vorax#OradocSearch(<q-args>)
+    nmap <unique> <script> <Plug>VoraxHelp :VoraxHelp<CR>
+endif
+
+if !exists(':VoraxHelpBuildIndex')
+    command! -nargs=? -complete=file VoraxHelpBuildIndex :call vorax#OradocBuild(<q-args>)
+    nmap <unique> <script> <Plug>VoraxHelpBuildIndex :VoraxHelpBuildIndex<CR>
+endif
+
 if !exists(':VoraxExecUnderCursor')
     command! -nargs=0 VoraxExecUnderCursor :call vorax#Exec('', 1, "")
+endif
+
+if !exists(':VoraxExplainUnderCursor')
+    command! -nargs=0 VoraxExplainUnderCursor :call vorax#Explain('', 0)
+endif
+
+if !exists(':VoraxExplainOnlyUnderCursor')
+    command! -nargs=0 VoraxExplainOnlyUnderCursor :call vorax#Explain('', 1)
 endif
 
 if !exists(':VoraxExecBuffer')
@@ -210,6 +265,14 @@ endif
 
 if !exists(':VoraxExecVisualSQL')
     command! -nargs=0 -range VoraxExecVisualSQL :call vorax#Exec(vorax#SelectedBlock(), 1, "")
+endif
+
+if !exists(':VoraxExplainVisualSQL')
+    command! -nargs=0 -range VoraxExplainVisualSQL :call vorax#Explain(vorax#SelectedBlock(), 0)
+endif
+
+if !exists(':VoraxExplainOnlyVisualSQL')
+    command! -nargs=0 -range VoraxExplainOnlyVisualSQL :call vorax#Explain(vorax#SelectedBlock(), 1)
 endif
 
 if exists(':VoraxDescribeVisual') != 2
@@ -247,6 +310,10 @@ if !hasmapto('<Plug>VoraxConnect') && !hasmapto('<Leader>vc', 'n')
     nmap <unique> <Leader>vc <Plug>VoraxConnect
 endif
 
+if !hasmapto('<Plug>VoraxHelp') && !hasmapto('<Leader>vh', 'n')
+    nmap <unique> <Leader>vh <Plug>VoraxHelp
+endif
+
 if !hasmapto('<Plug>VoraxDbExplorer') && !hasmapto('<Leader>vv', 'n')
     nmap <unique> <Leader>vv <Plug>VoraxDbExplorer
 endif
@@ -268,6 +335,20 @@ augroup END
 """""""""""""""""""""""""""""""""""
 let s:interface = {}
 
+let s:event_handler = {}
+
+" this function is used to register keys for the result window
+function s:event_handler.rwin_register_keys() dict
+endfunction
+
+" this function is used to register keys for sql/plsql buffers
+function s:event_handler.buf_register_keys() dict
+endfunction
+
+" this function is used to register keys for db explorer
+function s:event_handler.dbexplorer_register_keys() dict
+endfunction
+
 """""""""""""""""""""""""""""""""""
 " Public API
 """""""""""""""""""""""""""""""""""
@@ -283,6 +364,11 @@ let s:interface = {}
 " interfaces under vorax/interface location.
 function Vorax_RegisterInterface(interface)
   let s:interface = copy(a:interface)
+endfunction
+
+" Get the current event handler
+function Vorax_GetEventHandler()
+  return s:event_handler
 endfunction
 
 " Get the current vorax interface.

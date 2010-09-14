@@ -84,6 +84,10 @@ function! Vorax_InitMappings()
 	noremap <silent> <buffer> R :call VrxTree_RefreshNode()<CR>
 	noremap <silent> <buffer> <Leader>vd :call <SID>DescribeCurrentObject(0)<CR>
 	noremap <silent> <buffer> <Leader>vdv :call <SID>DescribeCurrentObject(1)<CR>
+  
+  " User defined mappings
+  let handler = Vorax_GetEventHandler()
+  call handler.dbexplorer_register_keys()
 endfunction
 
 " Get the nodes corresponding to the provided path
