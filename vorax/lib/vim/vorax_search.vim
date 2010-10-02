@@ -32,8 +32,14 @@ function s:search.find()
     call add(g:fuf_modes, 'voraxitem')
     call fuf#voraxitem#launch('', 0, g:vorax_messages['vorax_fuzzy_prompt'], self)
   else
-    call s:tk_utils.EchoErr("FuzzyFinder plugin not found!")
-    startinsert!
+    if exists('*fuf#addMode')
+      " that's the new fuf version
+      call fuf#addMode('voraxitem')
+      call fuf#voraxitem#launch('', 0, g:vorax_messages['vorax_fuzzy_prompt'], self)
+    else
+      call s:tk_utils.EchoErr("FuzzyFinder plugin not found!")
+    endif
+    "startinsert!
   endif
 endfunction
 

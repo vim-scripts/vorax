@@ -9,7 +9,7 @@ class AliasResolver
     prefix.upcase!
     sources = Alias::Lexer::gather_for(text, 0)
     # is the prefix a simple word?
-    if prefix =~ /^[A-Z0-9$#_]$/
+    if prefix =~ /^[A-Z0-9$#_]+$/
       # it could be an alias... is it?
       a = sources.find { |src| src.idn && src.idn == prefix }
       if a && a.expr

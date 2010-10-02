@@ -48,7 +48,7 @@ need to take care of some dependencies VoraX relies on:
 1. your vim must have ruby support enabled. In order to check this you may
 execute :version and look for +ruby. The supported ruby is ruby1.8. To check 
 this you may run:
-	:ruby puts $RUBY_VERSION
+	:ruby puts RUBY_VERSION
 CREAM configurations are not supported therefore a plain vim should be used. 
 2. ruby 1.8 (1.8.7 is the recommended version)
 3. rubygems (on Debian systems is as symple as: sudo apt-get install rubygems)

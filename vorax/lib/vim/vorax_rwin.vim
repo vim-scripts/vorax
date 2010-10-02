@@ -132,7 +132,7 @@ function s:rwin.ShowResults(monitor) dict
   call self.FocusResultsWindow()
   " clear the result window?
   if g:vorax_resultwin_clear
-    normal ggdG
+    normal gg"_dG
   endif
   normal G$
   setlocal updatetime=50
@@ -335,7 +335,7 @@ function s:rwin.SpitOutput(output) dict
   call self.ShowResults(0)
   " clear the result window?
   if g:vorax_resultwin_clear
-    normal ggdG
+    normal gg"_dG
     let index = 0
   else
     let index = line('$')

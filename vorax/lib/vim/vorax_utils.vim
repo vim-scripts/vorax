@@ -93,7 +93,7 @@ function s:utils.UnderCursorStatement() dict
   let stop_line = 0
   let stop_col = 0
   while (start_line == 0)
-    let result = search(';\|\/', 'beW')
+    let result = search(';\|^\s*\/\s*$', 'beW')
     if result
       let syn = synIDattr(synIDtrans(synID(line("."), col("."), 1)), "name")  
       if syn == "Constant" || syn == 'Comment'
@@ -112,7 +112,7 @@ function s:utils.UnderCursorStatement() dict
     endif
   endwhile
   while (stop_line == 0)
-    let result = search(';\|\/', 'W')
+    let result = search(';\|^\s*\/\s*$', 'W')
     if result
       let syn = synIDattr(synIDtrans(synID(line("."), col("."), 1)), "name")  
       if syn == "Constant" || syn == "Comment"

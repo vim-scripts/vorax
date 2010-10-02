@@ -43,7 +43,13 @@ function s:handler.getModeName()
 endfunction
 
 function s:handler.getPrompt()
-  return fuf#formatPrompt(s:prompt, self.partialMatching)
+  if exists('*fuf#addMode')
+    " for the new 4.2.x version
+    return fuf#formatPrompt(s:prompt, self.partialMatching, '')
+  else
+    " for the old version
+    return fuf#formatPrompt(s:prompt, self.partialMatching)
+  endif
 endfunction
 
 function s:handler.getPreviewHeight()
@@ -52,6 +58,10 @@ endfunction
 
 function s:handler.targetsPath()
   return 0
+endfunction
+
+function s:handler.isOpenable(enteredPattern)
+  return 1
 endfunction
 
 function s:handler.makePatternSet(patternBase)
@@ -99,7 +109,7 @@ function s:handler.onModeEnterPost()
 endfunction
 
 function s:handler.onModeLeavePost(opened)
-  if !a:opened
+  if !a:opened && exists('s:listener.onAbort()')
     call s:listener.onAbort()
   endif
 endfunction

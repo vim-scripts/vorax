@@ -86,6 +86,7 @@ function s:db.Connect(cstr) dict
           \  "set autotrace off\n" .
           \  "set pagesize 9999\n" .
           \  "set heading off\n" .
+          \  "set timing off\n" .
           \  "set linesize 200\n"
     silent! call s:log.debug('Execute: '. save_cmd)
     call s:interface.send(s:interface.pack(save_cmd))
@@ -250,6 +251,7 @@ function s:db.Exec(cmd, feedback) dict
         \  "set linesize 10000\n" .
         \  "set verify off\n" .
         \  "set termout on\n" .
+        \  "set timing off\n" .
         \  "set array 500\n" .
         \  "set emb on pages 0 newp none\n"))
   if s:interface.last_error == ""

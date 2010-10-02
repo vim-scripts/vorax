@@ -1471,12 +1471,13 @@ function s:Columns(owner, table, pattern, prefix)
   else
     let owner = "'" . owner . "'"
   endif
+  let pattern = substitute(a:pattern, '\(%\|_\)', '`\1', 'g')
   let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ "select " . col . " from all_tab_columns " . 
         \ "where owner=" . owner . 
         \ " and table_name='" . a:table . "'" .
-        \ " and column_name like '" . toupper(a:pattern) . "%' " .
+        \ " and column_name like '" . toupper(pattern) . "%' escape '`' " .
         \ " order by column_id;" 
         \ , 0, "")
   return result
@@ -1512,6 +1513,7 @@ function s:ParamsFor(owner, module, submodule)
     let arg = 'argument_name'
     let type = 'data_type'
   endif
+  echom localtime()
   let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ "select " . arg . " || ' => ' || '::' || " . type . " || '::' || overload from all_arguments " . 
@@ -1522,6 +1524,7 @@ function s:ParamsFor(owner, module, submodule)
         \ " and data_level = 0 " .
         \ " order by overload, position;" 
         \ , 0, "")
+  echom localtime()
   return result
 endfunction
 
@@ -1579,6 +1582,7 @@ function s:SchemaObjects(schema, pattern)
   else
     let obj = "object_name"
   endif
+  let pattern = substitute(a:pattern, '\(%\|_\)', '`\1', 'g')
   if a:schema == ""
     let schema = "user, 'PUBLIC'"
   else
@@ -1587,10 +1591,10 @@ function s:SchemaObjects(schema, pattern)
   let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ "select distinct " . obj . " || '::' || " .
-        \ "       decode(t2.object_type, '', t1.object_type, t2.object_type) " .
+        \ "       t1.object_type " .
         \ "  from (select owner, object_name, object_type " .
         \ "          from all_objects o1 " .
-        \ "         where object_name like '" . toupper(a:pattern) . "%' " .
+        \ "         where object_name like '" . toupper(pattern) . "%' escape '`' " .
         \ "           and owner in (" . schema . ") " .
         \ "           and object_type in ('TABLE', " .
         \ "                               'VIEW', " .
@@ -1598,23 +1602,7 @@ function s:SchemaObjects(schema, pattern)
         \ "                               'PROCEDURE', " .
         \ "                               'FUNCTION', " .
         \ "                               'PACKAGE', " .
-        \ "                               'TYPE')) t1, " .
-        \ "       (select s.owner, s.synonym_name, o.object_type " .
-        \ "          from all_synonyms s, all_objects o " .
-        \ "         where s.owner in (" . schema . ") " .
-        \ "           and s.table_owner = o.owner " .
-        \ "           and s.table_name = o.object_name " .
-        \ "           and s.synonym_name like '". toupper(a:pattern) . "%') t2 " .
-        \ " where t1.owner = t2.owner(+) " .
-        \ "   and t1.object_name = t2.synonym_name(+) " .
-        \ "        and nvl(t2.object_type, t1.object_type) in ('TABLE', " .
-        \ "                               'VIEW', " .
-        \ "                               'SYNONYM', " .
-        \ "                               'PROCEDURE', " .
-        \ "                               'FUNCTION', " .
-        \ "                               'PACKAGE', " .
-        \ "                               'TYPE') " .
-        \ " order by 1; "
+        \ "                               'TYPE')) t1;" 
         \ , 0, "")
   let items = []
   for row in result
@@ -1658,16 +1646,18 @@ function s:Submodules(owner, module, pattern)
   " check if the subprogram_id column is available. Oracle XE doesn't
   " have it
   let order_by_col = 'procedure_name'
-  let column = vorax#Exec("select column_name from all_tab_columns where owner='SYS' and table_name='ALL_PROCEDURES' and column_name='SUBPROGRAM_ID';", 0, "")
-  if len(column) == 1 && column[0] == 'SUBPROGRAM_ID'
-    let order_by_col = column[0]
-  endif
+  " commented for performance reasons
+  "let column = vorax#Exec("select column_name from all_tab_columns where owner='SYS' and table_name='ALL_PROCEDURES' and column_name='SUBPROGRAM_ID';", 0, "")
+  "if len(column) == 1 && column[0] == 'SUBPROGRAM_ID'
+  "  let order_by_col = column[0]
+  "endif
+  let pattern = substitute(a:pattern, '\(%\|_\)', '`\1', 'g')
   let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ "select " . sm . " from all_procedures " .
         \ "where owner='" . a:owner . "'" .
         \ " and object_name='" . a:module . "'" . 
-        \ " and procedure_name like '".toupper(a:pattern)."%' " . 
+        \ " and procedure_name like '".toupper(pattern)."%' escape '`' " . 
         \ "order by " . order_by_col . ";"
         \ , 0, "")
   return result

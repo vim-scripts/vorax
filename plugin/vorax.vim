@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "2.3"
+let g:loaded_vorax = "2.4"
 let s:keep_cpo = &cpo
 set cpo&vim
 

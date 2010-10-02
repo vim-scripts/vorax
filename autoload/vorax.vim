@@ -168,7 +168,8 @@ function vorax#OradocSearch(pattern)
 endfunction
 
 function vorax#OradocBuild(dir)
-  call s:oradoc.Index(a:dir)
+  let dir = substitute(a:dir, '\\', '/', 'g')
+  call s:oradoc.Index(dir)
 endfunction
 
 " Get the currently selected block.

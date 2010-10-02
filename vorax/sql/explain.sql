@@ -24,8 +24,10 @@ set serveroutput off
 set termout on
 
 -- set options so that the plan to look nice
-set linesize 130
+set linesize 200
 set pagesize 9999
+set heading off
+set feedback off
 
 -- show the plan for the last sql
 select * from table(dbms_xplan.display_cursor(null, null, 'ALLSTATS LAST'));
