@@ -122,9 +122,15 @@ function s:db.Connect(cstr) dict
           let output = self.ReadAll(status)
           silent! call s:log.debug('Output: '. string(output))
           " check the connection
-          let connectedTo = self.ConnectionOwner()
-          if connectedTo =~ '^[^@]\+@[^@]\+$'
-            let &titlestring = connectedTo
+          if g:vorax_update_title
+            let connectedTo = self.ConnectionOwner()
+            if connectedTo =~ '^[^@]\+@[^@]\+$'
+              let &titlestring = connectedTo
+              let self.connected = 1
+            endif
+          else
+          	let connectedTo = '/'
+            " we don't know but assume it's connected
             let self.connected = 1
           endif
         endif
@@ -155,7 +161,7 @@ function s:db.ReadAll(feedback) dict
     " collect results
     while 1
       let buffer = s:interface.read()
-      if len(buffer) > 0
+      if len(buffer) > 0 
         silent! call s:log.debug('read all buffer='. string(buffer))
         if s:interface.last_error != ""
           " an error has occured... do not continue
@@ -536,7 +542,7 @@ function s:ParseCstr(cstr)
     let cdata[key] = substitute(cdata[key],'^\s\+\|\s\+$',"","g")
   endfor
   " check for OS auth
-  if cdata['db'] =~? '^\s*as\s*(sysdba|sysasm|sysoper)\s*$'
+  if cdata['db'] == '' || cdata['db'] =~? '^\s*as\s*(sysdba|sysasm|sysoper)\s*$'
     let cdata['osauth'] = 1
   endif
   return cdata
@@ -554,6 +560,7 @@ function s:PromptCredentials(cstr)
     if (cdata['passwd'] == '') || (cdata['db'] == '')
       " reparse the new provided string
       let ncd = s:ParseCstr(user)
+      let cdata['osauth'] = ncd['osauth']
       let cdata['user'] = ncd['user']
       if ncd['passwd'] != ''
         let cdata['passwd'] = ncd['passwd']
@@ -575,9 +582,6 @@ function s:PromptCredentials(cstr)
     else
       let cdata['passwd'] = passwd
     endif
-  endif
-  if cdata['db'] == ''
-    let cdata['db'] = toupper(input(g:vorax_messages['database'] . ': '))
   endif
   return cdata
 endfunction

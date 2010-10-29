@@ -109,6 +109,12 @@ VoraX defines the following commands:
 :VoraxExplainVisualSQL
 	-> explain plan for the selected statement.
 
+:VoraxQueryVerticalLayout
+  -> executes the current query and shows the result using a vertical columns layout.
+
+:VoraxQueryVerticalLayoutVisual
+  -> executes the selected query and shows the result using a vertical columns layout.
+
 :VoraxExplainOnlyVisualSQL
 	-> explain only plan for the selected statement.
 
@@ -139,6 +145,9 @@ VoraX defines the following commands:
 :VoraxToggleConnWindow
 	-> Toggles the connection profiles window.
 
+:VoraxToggleResultWindow
+	-> Toggles the results window.
+
 :VoraxSearch
 	-> Fuzzy search for a database object name.
 
@@ -157,6 +166,7 @@ The default mappings for VoraX are shown below.
 Global mappings (normal mode):
 <Leader>vc 	: Request a connection to the database.
 <Leader>vo 	: Toggles the connection profiles window.
+<Leader>vr 	: Toggles the results window.
 <Leader>vv 	: Opens the database explorer tree.
 <Leader>vh 	: Search/help for the provided pattern into
                   the configured oracle docs.
@@ -165,14 +175,17 @@ Sql/PLSQL local buffer mappings (normal mode):
 <Leader>ve 	: Executes statements (the current one or the selected ones).
 <Leader>vp 	: Explain plan for statement (the current one or the 
                   selected one).
-<Leader>vpo 	: Explain only plan for statement (the current one or the 
+<Leader>vpo	: Explain only plan for statement (the current one or the 
                   selected one).
 <Leader>vb 	: Executes all statements from the current buffer.
 <Leader>vd 	: Describe the database object under cursor.
-<Leader>vdd 	: Describe the database object under cursor using the detailed
+<Leader>vdd	: Describe the database object under cursor using the detailed
 		  mode.
 <Leader>vg 	: Go to definition of the database object under cursor.
-K               : Oracledoc help for the word under cursor.
+<Leader>v1  : Executes a query and shows the results using the vertical 
+              columns layout. Pay attention that only queries should be
+              executed this way.
+K           : Oracledoc help for the word under cursor.
 
 Sql/PLSQL local buffer mappings (insert mode):
 <Leader>vl 	: While in insert mode start a vorax fuzzy search.
@@ -311,6 +324,31 @@ g:vorax_oradoc_autoclose
 g:vorax_oradoc_open_with
 	-> this option configures the external browser to be used when opening
 	a documentation entry.
+
+g:vorax_restore_focus
+	-> by default, when executing something VoraX will spit the output
+	directly into the result window and will leave the focus there. You may
+	set this global variable to set the focus back to the previous
+	(usually the originating) window after the statment is executed.
+
+g:vorax_update_title
+	-> by default, after executing any statement VoraX checks the current 
+	connection and gets the corresponding user@db. Then it uses this string
+	to update the title of the window and the root node of the DbExplorer.
+	The side effect of this is that DBMS_XPLAN.display_cursor, when no sql_id 
+	is provided, will fail to display the execution plan of the last executed
+	statement because, in this case, the last executed statement is the one 
+	used to get the currently connected user@db and not the query executed by
+	the user. You may disable the automatic update of the title by setting this
+	variable on 0. However, you may choose to show this information as part 
+	of the sqlplus prompt with something like:
+
+  set echo on
+  set sqlprompt "_USER'@'_CONNECT_IDENTIFIER _PRIVILEGE> "
+
+  or, you may choose the built-in explain plan feature of VoraX, or you may
+  execute the query to be explained and the dbms_xplan.display_cursor as
+  a single block.
 
 g:vorax_debug
 	->  this variable controlls whenever or not to write into a log file.

@@ -17,17 +17,16 @@ runtime! vorax/interface/**/*.vim
 runtime! vorax/lib/vim/*.vim
 
 " Load ruby libraries
-let s:ruby_lib_dir = fnamemodify(finddir('vorax/lib/ruby', fnamemodify(&rtp, ':p:8')), ':p:8')
-let s:ruby_lib_dir = substitute(s:ruby_lib_dir, '\', '/', 'g')
-" the above trickery is for Windows OS
+let s:ruby_lib_dir = expand('<sfile>:p:h') . '/../vorax/lib/ruby/'
 if s:ruby_lib_dir != ""
-  let s:ruby_lib_dir = substitute(s:ruby_lib_dir, '\', '/', 'g')
+  let s:ruby_lib_dir = substitute(s:ruby_lib_dir, '\\\\\|\\', '/', 'g')
   ruby require "rubygems"
   ruby Dir[VIM::evaluate('s:ruby_lib_dir')+"*.rb"].each {|file| require file}
 endif
 
 " The location of the sql script directory
-let s:sql_dir = substitute(fnamemodify(finddir('vorax/sql', fnamemodify(&rtp, ':p:8')), ':p:8'), '\', '/', 'g')
+let s:sql_dir = fnamemodify(expand('<sfile>:p:h') . '/../vorax/sql/', ':p:8')
+let s:sql_dir = substitute(s:sql_dir, '\\\\\|\\', '/', 'g')
 
 " The interface object
 let s:interface = Vorax_GetInterface()
@@ -186,7 +185,6 @@ function! vorax#ExecBuffer()
   silent! call s:log.trace('start of vorax#ExecBuffer')
   if &ft == 'sql' || &ft == 'plsql'
     let content = s:tk_utils.BufferContent()
-    let content .= s:tk_db.Delimitator(content)
     " go to the beginning of the buffer. This is importat,
     " especially when computing error line numbers in
     " quickfix window
@@ -194,7 +192,7 @@ function! vorax#ExecBuffer()
     call vorax#Exec(content, 1, "Executing...")
   else
   silent! call s:log.error('wrong buffer')
-    call s:tk_utils.EchoErr(g:vorax_messages['wrong_buffer'])
+  call s:tk_utils.EchoErr(g:vorax_messages['wrong_buffer'])
   endif
   silent! call s:log.trace('end of vorax#ExecBuffer')
 endfunction
@@ -234,6 +232,13 @@ function! vorax#ToggleConnWindow()
   silent! call s:log.trace('end of vorax#ToggleConWindow()')
 endfunction
 
+" Toggles the result window
+function! vorax#ToggleResultWindow()
+  silent! call s:log.trace('start of vorax#ToggleResultWindow()')
+  call s:tk_rwin.FocusResultsWindow(1)
+  silent! call s:log.trace('end of vorax#ToggleResultWindow()')
+endfunction
+
 " Opens the db explorer window
 function! vorax#DbExplorer()
   silent! call s:log.trace('start of vorax#DbExplorer()')
@@ -261,7 +266,7 @@ function! vorax#ShowLastCompileErrors()
     " custom --> separator and we'll be use that to split the items, later
     let query = "select line || '-->' || position || '-->' || owner || '-->' " .
                   \ "|| name || '-->' || type || '-->' || " .
-                  \ "replace(replace(text, chr(10), ' '), '\', '\\') " .
+                  \ "replace(replace(text, chr(10), ' '), chr(92), chr(92) || chr(92)) " .
                   \ "from all_errors " .
                   \ "where owner || '.' || name || '.' || type in " . in_clause .
                   \ " order by line, position "
@@ -317,6 +322,48 @@ function! vorax#ShowLastCompileErrors()
     endif
   endif
   silent! call s:log.trace('end of vorax#ShowLastCompileErrors()')
+endfunction
+
+" Executes a query and display the results using the vertical
+" layout
+function! vorax#QueryVerticalLayout(query)
+  silent! call s:log.trace('start of vorax#QueryVerticalLaout(query)')
+  silent! call s:log.trace('query='.a:query)
+  if a:query == ''
+    " the command is not provided... assume the under cursor
+    " statement
+    silent! call s:log.debug('No statement provided. Compute the one under cursor.')
+    let stmt = s:tk_utils.UnderCursorStatement()
+    let query = stmt[4]
+  else
+  	let query = a:query
+  endif
+  " remove comments except for hints
+  let query = substitute(query, '\v((/\*(\s*\+\s*)@!([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//.*))[\r\n]*\s*', '', 'g')
+  " remove single line comments. The algorithm is not
+  " perfect: it breaks if single line comment mark is within quotes.
+  let query = substitute(query, '--.*\n', '', 'g')
+  " remove trailing blanks from cmd
+  let query = substitute(query, '\_s*\_$', '', 'g')
+  " add double quotes for query
+  let query = substitute(query, "'", "''", 'g')
+  " get rid of the end delimitator
+  if len(query) > 0
+    if query[len(query)-1] == '/' || query[len(query)-1] == ';'
+      let query = strpart(query, 0, len(query) - 1)
+    endif
+  endif 
+  " read the sql file
+  let sql_file = s:sql_dir . "/vertical_query.sql"
+  if filereadable(sql_file)
+    let sql_content = join(readfile(sql_file), "\n")
+    let sql_content = substitute(sql_content, '&1', query, '')
+    call s:tk_db.SaveSqlplusState()
+    call vorax#Exec(sql_content, 1, g:vorax_messages['executing'])
+    call s:tk_db.RestoreSqlplusState()
+  else
+    call s:tk_utils.EchoErr(sql_file . " not found.")
+  endif
 endfunction
 
 " Shows the explain plan for the provided sql (a:cmd). If the

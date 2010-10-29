@@ -70,6 +70,40 @@ function s:utils.IsLower(str) dict
   endif
 endfunction
 
+" Get the position of the first or the last valid statement char. Mode
+" can be: 'f' for forward, 'b' for backword. It returns an array of 
+" [line, col]
+function s:AdjustPosition(mode)
+  let whichwrap_bak = &whichwrap
+  set whichwrap+=<,>,h,l
+  if a:mode == 'f'
+    " forward search
+    let last_line = line('$')
+    while 1
+      let cc = col(".")
+      let cl = line(".")
+      let line = getline(".")
+      let syn = synIDattr(synIDtrans(synID(cl, cc, 1)), "name")  
+      if (syn != 'Comment' && line[cc-1] != ' ' && line[cc-1] != '') || (cc == col('$') && cl == last_line)
+        break
+      endif
+      normal l
+    endwhile
+  elseif a:mode == 'b'
+    while 1
+      let cc = col(".")
+      let cl = line(".")
+      let line = getline(".")
+      let syn = synIDattr(synIDtrans(synID(cl, cc, 1)), "name")  
+      if (syn != 'Comment' && line[cc-1] != ' ' && line[cc-1] != '') || (cc == 1 && cl == 1)
+        break
+      endif
+      normal h
+    endwhile
+  endif
+  exe 'set whichwrap=' . whichwrap_bak
+endfunction
+
 " Get the under cursor statemnt boundaries. It returns
 " an array with [start_line, start_col, stop_line, stop_col, statement, relpos].
 " The meaning of these values are:
@@ -81,6 +115,8 @@ endfunction
 " relpos => the absolute position of the cursor witin the current statement
 function s:utils.UnderCursorStatement() dict
   silent! call s:log.trace('start of s:utils.UnderCursorStatement')
+  let whichwrap_bak = &whichwrap
+  set whichwrap+=<,>,h,l
   let old_wrapscan=&wrapscan
   let &wrapscan = 0
   let old_search=@/
@@ -97,7 +133,7 @@ function s:utils.UnderCursorStatement() dict
     if result
       let syn = synIDattr(synIDtrans(synID(line("."), col("."), 1)), "name")  
       if syn == "Constant" || syn == 'Comment'
-        " do nothing
+        " do  nothing
       else
         " if the delimitator is not within quotes or comments
         normal l
@@ -112,11 +148,12 @@ function s:utils.UnderCursorStatement() dict
     endif
   endwhile
   while (stop_line == 0)
-    let result = search(';\|^\s*\/\s*$', 'W')
+    let result = search(';\|^\s*\/\s*$', 'Wc')
     if result
       let syn = synIDattr(synIDtrans(synID(line("."), col("."), 1)), "name")  
       if syn == "Constant" || syn == "Comment"
         " do nothing
+        normal l
       else
         " if the delimitator is not within quotes or comments
         let stop_line = line('.')
@@ -130,6 +167,23 @@ function s:utils.UnderCursorStatement() dict
       let stop_col = col('.') 
     endif
   endwhile
+  " adjusting taking into account comments
+  exe 'normal ' . start_line . 'G0'
+  if start_col > 1
+    exe 'normal ' . ( start_col - 1 ) . 'l'
+  endif
+  call s:AdjustPosition('f')
+  let start_line = line('.')
+  let start_col = col('.')
+  exe 'normal ' . stop_line . 'G0'
+  if stop_col > 1
+    exe 'normal ' . ( stop_col - 1 ) . 'l'
+  endif
+  call s:AdjustPosition('b')
+  let stop_line = line('.')
+  if stop_col > 1
+    let stop_col = col('.') - 1
+  endif
   " extract the actual statement
   let statement = ""
   for line in getline(start_line, stop_line)
@@ -158,6 +212,8 @@ function s:utils.UnderCursorStatement() dict
   let &wrapscan=old_wrapscan
   let @/=old_search
   let retval = [start_line, start_col, stop_line, stop_col, statement, rel_pos]
+  echom string(retval)
+  exe 'set whichwrap=' . whichwrap_bak
   silent! call s:log.trace('end of s:utils.UnderCursorStatement: returned value=' . string(retval))
   return retval
 endfunction
@@ -175,6 +231,14 @@ function s:utils.CreateBufferMappings() dict
 
   if maparg('<Leader>ve', 'v') == ""
     xmap <buffer> <unique> <Leader>ve :VoraxExecVisualSQL<cr>
+  endif
+
+  if maparg('<Leader>v1', 'n') == ""
+    nmap <buffer> <unique> <Leader>v1 :VoraxQueryVerticalLayout<cr>
+  endif
+
+  if maparg('<Leader>v1', 'v') == ""
+    xmap <buffer> <unique> <Leader>v1 :VoraxQueryVerticalLayoutVisual<cr>
   endif
 
   if maparg('<Leader>vp', 'n') == ""
@@ -205,7 +269,7 @@ function s:utils.CreateBufferMappings() dict
     nmap <buffer> <unique> <Leader>vdv :VoraxDescribeVerbose<cr>
   endif
 
-  if mapcheck('<Leader>vg', 'n') == ""
+  if maparg('<Leader>vg', 'n') == ""
     nmap <buffer> <unique> <Leader>vg :VoraxGotoDefinition<cr>
   endif
 

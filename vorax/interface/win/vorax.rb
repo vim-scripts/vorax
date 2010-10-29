@@ -46,11 +46,6 @@ def raise_last_win_32_error
   end
 end
 
-def cancel_console
-  cancelConsole = Win32API.new( "kernel32", "GenerateConsoleCtrlEvent", ['l', 'l'], 'l' )
-  cancelConsole.call(CTRL_BREAK_EVENT, 0)
-end
-
 def create_pipe # returns read and write handle
   params = [
     'P', # pointer to read handle
@@ -164,14 +159,11 @@ def peek_named_pipe(hFile)
   available = [0].pack('I')
   peekNamedPipe = Win32API.new("kernel32", "PeekNamedPipe", params, 'I')
 
-  return -1 if peekNamedPipe.Call(hFile, 0, 0, 0, available, 0).zero?
+  if peekNamedPipe.Call(hFile, 0, 0, 0, available, 0).zero?
+    raise IOError, 'Named pipe unavailable'
+  end
 
   available.unpack('I')[0]
-end
-
-def getConsoleCp
-  getConsoleOutputCP = Win32API.new( "kernel32", "GetConsoleOutputCP", [], 'l' )
-  getConsoleOutputCP.call()
 end
 
 class Win32popenIO
@@ -191,17 +183,6 @@ class Win32popenIO
     read_file(@hRead) unless peek_named_pipe(@hRead).zero?
   end
 
-  def cancel
-    cancel_console
-  end
-
-  def read_all
-    all = ''
-    while !(buffer = read).empty?
-      all << buffer
-    end
-    all
-  end
 end
 
 def popen(command)

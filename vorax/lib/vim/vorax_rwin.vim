@@ -51,7 +51,7 @@ let s:log_file = substitute(
 " Displays the results window. This function is smart enough to
 " figure out wherever or not this window has to be created or
 " just focused.
-function s:rwin.FocusResultsWindow() dict
+function s:rwin.FocusResultsWindow(toggle) dict
   silent! call s:log.trace('start s:rwin.FocusResultsWindow()')
   let result_buf_nr = bufnr('^' . s:vorax_result_bufname . '$')
   silent! call s:log.debug('result_buf_nr='.result_buf_nr)
@@ -69,8 +69,13 @@ function s:rwin.FocusResultsWindow() dict
       silent! exec "edit " .s:vorax_result_bufname
     else
       exec result_win_nr . "wincmd w"
+      if a:toggle
+      	close!
+        return
+      endif
     endif
   endif
+  setlocal nobuflisted
   silent! call s:log.trace('end s:rwin.FocusResultsWindow()')
 endfunction
 
@@ -129,7 +134,7 @@ endfunction
 " results buffer.
 function s:rwin.ShowResults(monitor) dict
   silent! call s:log.trace('start of s:ShowResults')
-  call self.FocusResultsWindow()
+  call self.FocusResultsWindow(0)
   " clear the result window?
   if g:vorax_resultwin_clear
     normal gg"_dG
@@ -173,7 +178,7 @@ endfunction
 
 " Starts the monitor for the results window.
 function s:StartMonitor()
-  call s:rwin.FocusResultsWindow()
+  call s:rwin.FocusResultsWindow(0)
   if g:vorax_inline_prompt
     inoremap <buffer> <cr> <esc>:call <SID>ProcessUserInput()<cr>
   else
@@ -187,7 +192,7 @@ endfunction
 
 " Stop the monitor for the results window.
 function s:StopMonitor()
-  call s:rwin.FocusResultsWindow()
+  call s:rwin.FocusResultsWindow(0)
   mapclear <buffer>
   imapclear <buffer>
   " still, the registered keys should remain
@@ -226,16 +231,19 @@ function s:FetchResults()
   " show progress informationn... a redraw is needed
   redraw
   echon g:vorax_messages['executing'] . (g:vorax_inline_prompt ? " " : " " . g:vorax_messages['how_to_prompt']) . " " . s:tk_utils.BusyIndicator()
-  if (!s:interface.more)
+  if (!s:interface.more || s:interface.last_error != '')
     " no more data from the interface... it's safe to stop monitoring
     call s:StopMonitor()
     " maybe a connect statement was issued which means the connected user@db
     " could be different... just in case, set the title
-    let title = s:tk_db.ConnectionOwner()
-    let &titlestring = title
-    if title !~ '^[^@]\+@[^@]\+$'
-      " mark it as disconnected
-      let s:tk_db.connected = 0
+    let title = ''
+    if s:interface.last_error == '' && g:vorax_update_title
+      let title = s:tk_db.ConnectionOwner()
+      let &titlestring = title
+      if title !~ '^[^@]\+@[^@]\+$'
+        " mark it as disconnected
+        let s:tk_db.connected = 0
+      endif
     endif
     " flush log
     call s:FlushLog()
@@ -251,6 +259,10 @@ function s:FetchResults()
       " this means the result is appended to the content of the
       " result window therefore we need an empty line above
       let s:last_truncated = 0
+    endif
+    " restore focus
+    if g:vorax_restore_focus
+      wincmd p
     endif
     " set status
     redraw
@@ -353,6 +365,10 @@ function s:rwin.SpitOutput(output) dict
     endfor
     " flush log
     call s:FlushLog()
+  endif
+  " restore focus
+  if g:vorax_restore_focus
+    wincmd p
   endif
 endfunction
 

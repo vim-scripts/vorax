@@ -62,6 +62,7 @@ endfunction
 "   title = the title of the tree used at the time it was created
 function! VrxTree_ToggleTreeWindow(title) "{{{1
   let buf = bufnr('^' . a:title . '$')
+  let root = g:vorax_update_title ? &titlestring : '/'
   if buf == -1
     " create new window
     throw 'VRX-2: Tree was not initialized.'
@@ -80,9 +81,9 @@ function! VrxTree_ToggleTreeWindow(title) "{{{1
                 \ s:settings[a:title]['side'], 
                 \ s:settings[a:title]['minWidth'], 
                 \ s:settings[a:title]['minHeight'])
-      if s:settings[a:title]['root'] != &titlestring
-        call VrxTree_SetPath(&titlestring)
-        let s:setings[a:title]['root'] = &titlestring
+      if s:settings[a:title]['root'] != root
+        call VrxTree_SetPath(root)
+        let s:settings[a:title]['root'] = root
       endif
     else
       " is visible, toggling means to close it

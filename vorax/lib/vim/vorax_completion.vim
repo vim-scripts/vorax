@@ -1513,7 +1513,6 @@ function s:ParamsFor(owner, module, submodule)
     let arg = 'argument_name'
     let type = 'data_type'
   endif
-  echom localtime()
   let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ "select " . arg . " || ' => ' || '::' || " . type . " || '::' || overload from all_arguments " . 
@@ -1524,7 +1523,6 @@ function s:ParamsFor(owner, module, submodule)
         \ " and data_level = 0 " .
         \ " order by overload, position;" 
         \ , 0, "")
-  echom localtime()
   return result
 endfunction
 

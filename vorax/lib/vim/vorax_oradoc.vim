@@ -7,6 +7,9 @@ if exists("g:vorax_oradoc")
   finish
 endif
 
+let s:default_oradoc_dir = fnamemodify(expand('<sfile>:p:h') . '/../../oradoc/public', ':p:8')
+let s:default_oradoc_dir = substitute(s:default_oradoc_dir, '\\\\\|\\', '/', 'g')
+
 " mark this as loaded
 let g:vorax_oradoc = 1
 
@@ -71,7 +74,7 @@ endfunction
 function s:oradoc.Index(oradoc_dir) dict
   if a:oradoc_dir == ''
     " default location
-    let oradoc_dir = substitute(fnamemodify(finddir('vorax/oradoc/public', fnamemodify(&rtp, ':p:8')), ':p:8'), '\', '/', 'g')
+    let oradoc_dir = s:default_oradoc_dir
   else
     let oradoc_dir = a:oradoc_dir
   endif
@@ -125,7 +128,6 @@ function s:OpenLink()
     " no backslashes please
     let link = substitute(link, '\\', '/', 'g')
     let cmd = substitute(g:vorax_oradoc_open_with, '%u', link, 'g')
-    echom cmd
     exe cmd
     " redraw vim. sometimes the launched external browser mess up vim
     redraw!

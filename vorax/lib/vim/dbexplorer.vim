@@ -46,7 +46,8 @@ function Vorax_DbExplorerToggle()
     let s:db = Vorax_DbLayerToolkit()
   endif
   if bufnr('^' . s:db_explorer_title . "$") == -1
-    call VrxTree_NewTreeWindow(&titlestring, 
+    let root = g:vorax_update_title ? &titlestring : '/'
+    call VrxTree_NewTreeWindow(root, 
                             \  s:db_explorer_title, 
                             \  1, 
                             \  g:vorax_dbexplorer_side, 
@@ -63,7 +64,8 @@ endfunction
 " after the connection was changed.
 function Vorax_RebuildDbExplorer()
   let ts = VrxTree_GetSettings(s:db_explorer_title)
-  if has_key(ts, 'root') && ts['root'] != &titlestring
+  let root = g:vorax_update_title ? &titlestring : '/'
+  if has_key(ts, 'root') && ts['root'] != root
     " is the dbexplorer visible?
     let bnr = bufnr(s:db_explorer_title)
     if bnr != -1  
@@ -96,7 +98,8 @@ function! Vorax_DbExplorerGetNodes(path)
     " no connection available
     return ""
   endif
-  if a:path == &titlestring
+  let root = g:vorax_update_title ? &titlestring : '/'
+  if a:path == root
     return s:GenericCategories(1)
   elseif a:path =~ '^"\?[^"]\+"Users$'
     let result = vorax#Exec("select username from all_users order by 1;", 0, g:vorax_messages['reading'])
@@ -106,6 +109,9 @@ function! Vorax_DbExplorerGetNodes(path)
   elseif a:path =~ '^"\?[^"]\+"[^"]\+$' || a:path =~ '^"\?[^"]\+"Users"[^"]\+"[^"]\+$'
     " a generic category under the current user or another one
     let category = s:ObjectType(a:path)
+    if category == "MVIEW"
+      let category = "MATERIALIZED VIEW"
+    endif
     let user = 'user'
     let parts = split(a:path, b:VrxTree_pathSeparator)
     if len(parts) == 4
@@ -162,7 +168,8 @@ function s:GenericCategories(include_users)
         \  "Synonyms\n" .
         \  "Types\n" .
         \  "Triggers\n" .
-        \  "Sequences\n" 
+        \  "Sequences\n" .
+        \  "MViews\n"
   if a:include_users
     let categories .= "Users\n" 
   endif
@@ -223,6 +230,9 @@ function! Vorax_DbExplorerClick(path)
       elseif subtype == 'Both'
         let type = 'TYPE'
       endif
+    endif
+    if type == 'MVIEW'
+      let type = "MATERIALIZED_VIEW"
     endif
     let fname = object_name . '.' . s:utils.ExtensionForType(type)
     let tname = substitute(fnamemodify(tempname(), ':h:p:8'), '\\', '/', 'g') . '/' . fname

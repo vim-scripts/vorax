@@ -4,7 +4,8 @@ endif
 
 let g:loaded_autoload_fuf_voraxitem = 1
 
-let s:sql_dir = substitute(fnamemodify(finddir('vorax/sql', fnamemodify(&rtp, ':p:8')), ':p:8'), '\', '/', 'g')
+let s:sql_dir = fnamemodify(expand('<sfile>:p:h') . '/../../vorax/sql/', ':p:8')
+let s:sql_dir = substitute(s:sql_dir, '\\\\\|\\', '/', 'g')
 
 function fuf#voraxitem#createHandler(base)
   return a:base.concretize(copy(s:handler))

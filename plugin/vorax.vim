@@ -17,7 +17,7 @@ if v:version < 700
   finish
 endif
 
-let g:loaded_vorax = "2.4"
+let g:loaded_vorax = "2.5"
 let s:keep_cpo = &cpo
 set cpo&vim
 
@@ -196,7 +196,8 @@ endif
 
 if !exists('g:vorax_oradoc_config_file')
   " The swish-e config file.
-  let g:vorax_oradoc_config_file = substitute(fnamemodify(finddir('vorax/oradoc/conf', fnamemodify(&rtp, ':p:8')) . '/vorax_oradoc.conf', ':p:8'), '\', '/', 'g')
+  let g:vorax_oradoc_config_file = fnamemodify(expand('<sfile>:p:h') . '/../vorax/oradoc/conf/vorax_oradoc.conf', ':p:8')
+  let g:vorax_oradoc_config_file = substitute(g:vorax_oradoc_config_file, '\\\\\|\\', '/', 'g')
 endif
 
 if !exists('g:vorax_oradoc_autoclose')
@@ -214,6 +215,18 @@ if !exists('g:vorax_oradoc_open_with')
     " asume firefox executable is in your $PATH
     let g:vorax_oradoc_open_with = "silent! !firefox -remote 'ping()' && firefox -remote 'openURL( %u )' || firefox '%u' &"
   endif
+endif
+
+if !exists('g:vorax_restore_focus')
+  " Whenever or not after executing something, should or should not the previous 
+  " (usually the orignating) window to be focused
+  let g:vorax_restore_focus = 1
+endif
+
+if !exists('g:vorax_update_title')
+  " Whenever or not VoraX checks the current connection after every execution
+  " in order to update the window/dbexplorer title with the user@db.
+  let g:vorax_update_title = 1
 endif
 
 if !exists('g:vorax_debug')
@@ -275,6 +288,14 @@ if !exists(':VoraxExplainOnlyVisualSQL')
     command! -nargs=0 -range VoraxExplainOnlyVisualSQL :call vorax#Explain(vorax#SelectedBlock(), 1)
 endif
 
+if !exists(':VoraxQueryVerticalLayout')
+    command! -nargs=0 VoraxQueryVerticalLayout :call vorax#QueryVerticalLayout('')
+endif
+
+if !exists(':VoraxQueryVerticalLayoutVisual')
+    command! -nargs=0 -range VoraxQueryVerticalLayoutVisual :call vorax#QueryVerticalLayout(vorax#SelectedBlock())
+endif
+
 if exists(':VoraxDescribeVisual') != 2
     command! -nargs=0 -range VoraxDescribeVisual :call vorax#Describe(vorax#SelectedBlock())
 endif
@@ -300,6 +321,11 @@ if !exists(':VoraxToggleConnWindow')
     nmap <unique> <script> <Plug>VoraxToggleConnWindow :VoraxToggleConnWindow<CR>
 endif
 
+if !exists(':VoraxToggleResultWindow')
+    command! -nargs=0 VoraxToggleResultWindow :call vorax#ToggleResultWindow()
+    nmap <unique> <script> <Plug>VoraxToggleResultWindow :VoraxToggleResultWindow<CR>
+endif
+
 if !exists(':VoraxSearch')
     command! -nargs=0 VoraxSearch :call vorax#Search()
 endif
@@ -320,6 +346,10 @@ endif
 
 if !hasmapto('<Plug>VoraxToggleConnWindow') && !hasmapto('<Leader>vo', 'n')
     nmap <unique> <Leader>vo <Plug>VoraxToggleConnWindow
+endif
+
+if !hasmapto('<Plug>VoraxToggleResultWindow') && !hasmapto('<Leader>vr', 'n')
+    nmap <unique> <Leader>vr <Plug>VoraxToggleResultWindow
 endif
 
 """""""""""""""""""""""""""""""""""

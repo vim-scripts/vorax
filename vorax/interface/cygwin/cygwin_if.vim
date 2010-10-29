@@ -13,7 +13,7 @@ let g:cygwin_interface = 1
 if has('win32unix')
   
   " the vorax ruby lib location
-  let s:vrx_lib = fnamemodify(findfile('vorax/interface/cygwin/vorax.rb', &rtp), ':p')
+  let s:vrx_lib = expand('<sfile>:h:p') . '/vorax.rb'
 
   " a temporary file name for packing
   let s:temp_in = fnamemodify(tempname(), ':p:h') . '/vorax_in.sql'
@@ -77,7 +77,7 @@ if has('win32unix')
     " instance. That's the case just in Windows... Even it's a
     " huge drawback, the cancel operation is implemented quite
     " rude: kill running sqlplus process and start a new one.
-    ruby Process.kill(9, $io.pid)
+    silent! ruby Process.kill(9, $io.pid)
     " return the status of the connection: 0 means it's not
     " safe to continue with this session and a reconnect must be
     " done; 1 means the session was successfully canceled and
@@ -116,6 +116,7 @@ if has('win32unix')
           end
         end
       rescue
+        VIM::command("echom 'avem error='.'" + $!.message.gsub(/'/, "''") + "'")
         VIM::command("let self.last_error='" + $!.message.gsub(/'/, "''") + "'")
       end
 EOF
@@ -150,7 +151,7 @@ EOF
 
   function s:interface.shutdown() dict
     " shutdown the interface
-    ruby Process.kill(9, $io.pid) if $io
+    silent! ruby Process.kill(9, $io.pid) if $io
     ruby $io = nil
     " no garbage please: delete the temporary file, if any
     call delete(s:temp_in)

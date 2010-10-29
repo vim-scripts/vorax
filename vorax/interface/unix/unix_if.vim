@@ -13,7 +13,7 @@ let g:unix_interface = 1
 if has('unix') && !has('win32unix')
   
   " the vorax ruby lib location
-  let s:vrx_lib = fnamemodify(findfile('vorax/interface/unix/vorax.rb', &rtp), ':p')
+  let s:vrx_lib = expand('<sfile>:h:p') . '/vorax.rb'
 
   " a temporary file name for packing
   let s:temp_in = fnamemodify(tempname(), ':p:h') . '/vorax_in.sql'
@@ -70,8 +70,8 @@ if has('unix') && !has('win32unix')
   function s:interface.cancel() dict
     " abort fetching data through the interface
     let self.last_error = ""
-    ruby Process.kill('INT', $io.pid)
-    ruby $io.write("\nprompt " + VIM::evaluate('s:end_marker'))
+    silent! ruby Process.kill('INT', $io.pid)
+    silent! ruby $io.write("\nprompt " + VIM::evaluate('s:end_marker'))
     if self.last_error == ""
       " the session was successfully cancelled
       return 1
@@ -140,7 +140,7 @@ EOF
 
   function s:interface.shutdown() dict
     " shutdown the interface
-    ruby Process.kill(9, $io.pid) if $io
+    silent! ruby Process.kill(9, $io.pid) if $io
     ruby $io = nil
     " no garbage please: delete the temporary file, if any
     call delete(s:temp_in)

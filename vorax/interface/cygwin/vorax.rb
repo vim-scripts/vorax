@@ -24,7 +24,7 @@ class UnixPIO
         buf << c if c
         return buf if buf.length >= BUF_SIZE
       end
-    rescue
+    rescue Errno::EAGAIN
     end
     buf
   end
