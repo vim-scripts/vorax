@@ -1,10 +1,10 @@
 *vorax.txt*   Plugin for working with Oracle databases.
               For vim version 7.x
 
-			      By Alexandru Tică
-		    alexandru.tica email-at-sign gmail.com
+			       By Alexandru Tică
+		     alexandru.tica email-at-sign gmail.com
 
-							*vorax* *vorax-plugin*
+                                                        *vorax* *vorax-plugin*
 
 	Contents:
 	   How to Install ......................... |vorax-install|
@@ -40,7 +40,7 @@ with a lot of features they never use. Likewise, the fact that VoraX may be used
 within a regular console makes it suitable for server environments.
 
 ==============================================================================
-HOW TO INSTALL 						       *vorax-install*
+HOW TO INSTALL                                                 *vorax-install*
 
 VoraX follows the standard procedure of installing a Vim plugin. However, you 
 need to take care of some dependencies VoraX relies on:
@@ -74,7 +74,7 @@ using the following commands:
 	:helptags $VIM/vimfiles/doc 		(Windows)
 
 ==============================================================================
-COMMANDS 						      *vorax-commands*
+COMMANDS                                                      *vorax-commands*
 
 VoraX defines the following commands:
 
@@ -159,7 +159,7 @@ VoraX defines the following commands:
 	provided path.
 
 ==============================================================================
-MAPPINGS 						      *vorax-mappings*
+MAPPINGS                                                      *vorax-mappings*
 
 The default mappings for VoraX are shown below.
 
@@ -191,7 +191,7 @@ Sql/PLSQL local buffer mappings (insert mode):
 <Leader>vl 	: While in insert mode start a vorax fuzzy search.
 
 ==============================================================================
-CONFIGURATION 						 *vorax-configuration*
+CONFIGURATION                                            *vorax-configuration*
 
 You may customize VoraX using the following global variables:
 
@@ -350,6 +350,13 @@ g:vorax_update_title
   execute the query to be explained and the dbms_xplan.display_cursor as
   a single block.
 
+g:vorax_quickfixwin_command
+  -> contains the command used to display the quickfix window after compiling
+  a PL/SQL object (package, type, procedure etc.) Using this variable you have
+  flexibility on deciding the layout of the window but you can also invoke
+  a custom VIM function which may choose to display the errors in a differnt
+  way.
+
 g:vorax_debug
 	->  this variable controlls whenever or not to write into a log file.
 	This feature depends on the log.vim plugin which is available on 
@@ -357,7 +364,7 @@ g:vorax_debug
 	attention that this script should resie in the autoload directory.
 
 ==============================================================================
-CUSTOMIZING KEY MAPPINGS                                *vorax-custom-mappings*
+CUSTOMIZING KEY MAPPINGS                               *vorax-custom-mappings*
 
 If you don't like the default VoraX key mappings you are allowed to change
 them using a very simple mechanism. VoraX registers an event handler object
@@ -395,7 +402,7 @@ function! s:vorax_handler.dbexplorer_register_keys() dict
 endfunction
 
 ==============================================================================
-USING DBEXPLORER 					     *vorax-dbexplorer*
+USING DBEXPLORER                                            *vorax-dbexplorer*
 
 The DbExplorer may be used to browse database objects and to view/edit their
 definitions. To move through nodes use the standard vim navigation keys. To
@@ -405,7 +412,7 @@ tree. You may select the object you want and invoke describe directly from
 here.
 
 ==============================================================================
-USING THE CONNECTION WINDOW 			 	    *vorax-conn-window*
+USING THE CONNECTION WINDOW                                *vorax-conn-window*
 
 The connection profiles window is a special buffer where you may store all
 your frequently used connection strings. A connection profile can be something
@@ -425,7 +432,7 @@ The connection profiles file is always stored into: $HOME/_vorax_connections
 file.
 
 ==============================================================================
-THE OUTPUT BUFFER      			 	          *vorax-output-buffer*
+THE OUTPUT BUFFER                                        *vorax-output-buffer*
 
 The output of an executed statement is displayed into the so-called output
 buffer. This is a special buffer where you may inspect the result of your
@@ -433,14 +440,24 @@ executed oracle command. The following key mappings are available within this
 window:
 
 <Leader>vd 	: Describe the database object under cursor.
-<Leader>vdd 	: Describe the database object under cursor using the detailed
-		  mode.
+<Leader>vdd : Describe the database object under cursor using the detailed
+              mode.
 <Leader>vg 	: Go to definition of the database object under cursor.
-L               : switch on/off logging for this window.
-R               : Refresh the window by re-executing the last statement.
+L           : switch on/off logging for this window.
+R           : Refresh the window by re-executing the last statement.
+K           : Oracle help (if configured) for the word under cursor
+
+VoraX also provides a way to run post-display actions after the output of an
+executed statement is display. This can be done using the provided VoraX event
+handler. It's up to the user to provide an implementation for the:
+
+	[event_handler_object].rwin_after_spit
+
+function. For an example of how to use this event handler see 
+|vorax-custom-mappings|
 
 ==============================================================================
-USING THE FUZZY SEARCH 			 	           *vorax-fuzzy-search*
+USING THE FUZZY SEARCH                                    *vorax-fuzzy-search*
 
 VoraX allows to fuzzy search for a database item. This may be quite handy when
 you don't know the complete name of the item but just a part of it. For
@@ -471,7 +488,7 @@ The VoraX fuzzy search feature depends on the FuzzyFinder plugin. Please see
 the next section about VoraX integration.
 
 ==============================================================================
-EXPLAIN PLANS    			 	           *vorax-explain-plan*
+EXPLAIN PLANS                                             *vorax-explain-plan*
 
 VoraX allows you to get two kinds of explain plans for a statement: a detailed 
 one or a traceonly plan respectively. The corresponding default key mappings 
@@ -495,7 +512,7 @@ sqlplus feature but you may change the whole logic by modifying the
 explain_only.sql file, located within &rtp/vorax/sql directory.
 
 ==============================================================================
-SEARCH ORACLE DOCUMENTATION    			 	     *vorax-oracle-doc*
+SEARCH ORACLE DOCUMENTATION                                 *vorax-oracle-doc*
 
 You may quickly search for something into the Oracle html documentation
 directly in VoraX. However, if you want this feature, you have to configure it
@@ -514,10 +531,10 @@ your desired directory or, for an easy configuration, directly under
 
 Open VIM/VoraX (there's no need to connect to a database) and 
    - if you have the documentation into &rtp/vorax/oradoc/public invoke:
-	:VoraxHelpBuildIndex
+	   :VoraxHelpBuildIndex
 
    - if you have the oracle documentation into another non-default location: 
-	:VoraxHelpBuildIndex <dir_with_your_oracle_doc>
+	   :VoraxHelpBuildIndex <dir_with_your_oracle_doc>
 
 The above command will start to index all the HTML files and, at the end, will
 provide several statistics. It may happen some parsing errors to be displayed
@@ -540,7 +557,7 @@ documentation page will be followed using your configured external browser.
 The browser to be used is set by g:vorax_oradoc_open_with global variable.
 
 ==============================================================================
-INTEGRATION 						    *vorax-integration*
+INTEGRATION                                                *vorax-integration*
 
 VoraX integrates with NERDTree plugin. It creates a key map in order to
 execute an sql file directly from the NERDTree explorer. Select the file you

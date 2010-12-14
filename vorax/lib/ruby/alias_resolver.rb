@@ -16,7 +16,7 @@ class AliasResolver
         #get subselect columns
         collect_columns(a.object, sources, 1, cols)
       elsif a
-        cols << "#{a.object}.*"
+        cols << "#{a.owner=="" ? "" : a.owner + "."}#{a.object}.*"
       else
         cols << "#{prefix}.*"
       end

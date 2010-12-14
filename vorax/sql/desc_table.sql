@@ -156,7 +156,7 @@ begin
                                 index_name,
                                 index_type,
                                 sys_connect_by_path(column_name, '/') text
-                           from (select row_number() over(partition by t1.index_name order by t2.column_name desc) piece,
+                           from (select row_number() over(partition by t1.index_name order by t2.column_position) piece,
                                         t1.index_name,
                                         t1.index_type,
                                         t2.column_name

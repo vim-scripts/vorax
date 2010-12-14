@@ -3,7 +3,7 @@
 " License: Apache License 2.0
 
 " no multiple loads allowed
-if exists("g:vorax_dbexplorer")
+if exists("s:vorax_dbexplorer")
   finish
 endif
 
@@ -11,7 +11,7 @@ endif
 silent! let s:log = log#getLogger(expand('<sfile>:t'))
 
 " flag to signal this source was loaded
-let g:vorax_dbexplorer = 1
+let s:vorax_dbexplorer = 1
 
 " The title of the vorax db explorer
 let s:db_explorer_title = 'Vorax-DbExplorer'
@@ -45,7 +45,8 @@ function Vorax_DbExplorerToggle()
     let s:db = {}
     let s:db = Vorax_DbLayerToolkit()
   endif
-  if bufnr('^' . s:db_explorer_title . "$") == -1
+  let bnr = bufnr('^' . s:db_explorer_title . "$") 
+  if bnr == -1
     let root = g:vorax_update_title ? &titlestring : '/'
     call VrxTree_NewTreeWindow(root, 
                             \  s:db_explorer_title, 
@@ -73,8 +74,7 @@ function Vorax_RebuildDbExplorer()
       let wnr = bufwinnr(bnr) 
       if wnr != -1
         " the window is visible... focus it
-        exec bnr . "bw"
-        call vorax#DbExplorer()
+        call VrxTree_FocusTreeWindow(s:db_explorer_title, 0)
       endif
     endif
   endif

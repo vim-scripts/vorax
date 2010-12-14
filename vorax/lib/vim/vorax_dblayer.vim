@@ -3,12 +3,12 @@
 " License: Apache License 2.0
 
 " no multiple loads allowed
-if exists("g:vorax_dblayer")
+if exists("s:vorax_dblayer")
   finish
 endif
 
 " mark this as loaded
-let g:vorax_dblayer = 1
+let s:vorax_dblayer = 1
 
 runtime! vorax/lib/vim/vorax_utils.vim
 runtime! vorax/lib/vim/vorax_parser.vim

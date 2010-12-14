@@ -58,9 +58,7 @@ function! VrxTree_GetSettings(title)
   endif
 endfunction
 
-" Toggle the Tree
-"   title = the title of the tree used at the time it was created
-function! VrxTree_ToggleTreeWindow(title) "{{{1
+function! VrxTree_FocusTreeWindow(title, toggle)
   let buf = bufnr('^' . a:title . '$')
   let root = g:vorax_update_title ? &titlestring : '/'
   if buf == -1
@@ -81,16 +79,24 @@ function! VrxTree_ToggleTreeWindow(title) "{{{1
                 \ s:settings[a:title]['side'], 
                 \ s:settings[a:title]['minWidth'], 
                 \ s:settings[a:title]['minHeight'])
-      if s:settings[a:title]['root'] != root
-        call VrxTree_SetPath(root)
-        let s:settings[a:title]['root'] = root
-      endif
     else
       " is visible, toggling means to close it
       exec buf_win_nr . "wincmd w"
-      close!
+      if a:toggle
+        close!
+      endif
+    endif
+    if s:settings[a:title]['root'] != root
+      call VrxTree_SetPath(root)
+      let s:settings[a:title]['root'] = root
     endif
   endif
+endfunction
+
+" Toggle the Tree
+"   title = the title of the tree used at the time it was created
+function! VrxTree_ToggleTreeWindow(title) "{{{1
+  call VrxTree_FocusTreeWindow(a:title, 1)
 endfunction "}}}1
 
 function! VrxTree_RebuildTree () "{{{1

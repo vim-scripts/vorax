@@ -2,12 +2,12 @@
 " License: Apache License 2.0
 
 " no multiple loads allowed
-if exists("g:vorax_utils")
+if exists("s:vorax_utils")
   finish
 endif
 
 " mark as loaded
-let g:vorax_utils = 1
+let s:vorax_utils = 1
 
 let s:utils = {}
 
@@ -212,7 +212,6 @@ function s:utils.UnderCursorStatement() dict
   let &wrapscan=old_wrapscan
   let @/=old_search
   let retval = [start_line, start_col, stop_line, stop_col, statement, rel_pos]
-  echom string(retval)
   exe 'set whichwrap=' . whichwrap_bak
   silent! call s:log.trace('end of s:utils.UnderCursorStatement: returned value=' . string(retval))
   return retval

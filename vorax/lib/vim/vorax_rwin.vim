@@ -3,12 +3,12 @@
 " License: Apache License 2.0
 
 " no multiple loads allowed
-if exists("g:vorax_rwin")
+if exists("s:vorax_rwin")
   finish
 endif
 
 " Mark as loaded
-let g:vorax_rwin = 1
+let s:vorax_rwin = 1
 
 " Enable logging
 if g:vorax_debug
@@ -23,12 +23,8 @@ let s:interface = Vorax_GetInterface()
 let s:tk_utils = Vorax_UtilsToolkit()
 let s:tk_db = Vorax_DbLayerToolkit()
 
-
-" Mark this as loaded
-let g:vorax_rwin = 1
-
 " The rwin object reference
-let s:rwin = {'last_statement' : {'cmd' : '', 'type' : ''} }
+let s:rwin = {'last_statement' : {'cmd' : '', 'type' : '', 'frombuf' : 0} }
 
 " This variable is used internally when results from the
 " interface are put back together
@@ -47,6 +43,9 @@ let s:log_file = substitute(
             \ (exists('g:vorax_logging_dir') ? g:vorax_logging_dir : expand('$HOME')) . '/vorax_' . localtime() . '_' . getpid() . '.log',
             \ ':p:8'), 
   \ '\', '/', 'g')
+
+" the event handler
+let s:handler = Vorax_GetEventHandler()
 
 " Displays the results window. This function is smart enough to
 " figure out wherever or not this window has to be created or
@@ -123,8 +122,7 @@ function s:RegisterKeys()
   endif
 
   " User defined mappings
-  let handler = Vorax_GetEventHandler()
-  call handler.rwin_register_keys()
+  call s:handler.rwin_register_keys()
 endfunction
 
 " Usually called after executing something and
@@ -141,7 +139,7 @@ function s:rwin.ShowResults(monitor) dict
   endif
   normal G$
   setlocal updatetime=50
-  setlocal winfixwidth
+  setlocal winfixheight
   setlocal noswapfile
   setlocal buftype=nofile
   setlocal nowrap
@@ -260,9 +258,15 @@ function s:FetchResults()
       " result window therefore we need an empty line above
       let s:last_truncated = 0
     endif
+    " invoke after display
+    call s:handler.rwin_after_spit()
     " restore focus
     if g:vorax_restore_focus
-      wincmd p
+      let wnr = bufwinnr(s:rwin.last_statement.frombuf)
+      if wnr != -1
+        " focus the exec buffer only if it's still open
+        exe wnr . "wincmd w"
+      endif
     endif
     " set status
     redraw
@@ -366,9 +370,15 @@ function s:rwin.SpitOutput(output) dict
     " flush log
     call s:FlushLog()
   endif
+  " invoke after display
+  call s:handler.rwin_after_spit()
   " restore focus
   if g:vorax_restore_focus
-    wincmd p
+    let wnr = bufwinnr(s:rwin.last_statement.frombuf)
+    if wnr != -1
+      " focus the exec buffer only if it's still open
+      exe wnr . "wincmd w"
+    endif
   endif
 endfunction
 

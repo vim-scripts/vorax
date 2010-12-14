@@ -3,15 +3,16 @@
 " License: Apache License 2.0
 
 " no multiple loads allowed
-if exists("g:vorax_oradoc")
+if exists("s:vorax_oradoc")
   finish
 endif
 
+" mark this as loaded
+let s:vorax_oradoc = 1
+
+" the default path
 let s:default_oradoc_dir = fnamemodify(expand('<sfile>:p:h') . '/../../oradoc/public', ':p:8')
 let s:default_oradoc_dir = substitute(s:default_oradoc_dir, '\\\\\|\\', '/', 'g')
-
-" mark this as loaded
-let g:vorax_oradoc = 1
 
 " Enable logging
 if g:vorax_debug

@@ -3,12 +3,12 @@
 " License: Apache License 2.0
 
 " no multiple loads allowed
-if exists("g:vorax_completion")
+if exists("s:vorax_completion")
   finish
 endif
 
 " flag to signal this source was loaded
-let g:vorax_completion = 1
+let s:vorax_completion = 1
 
 " sql/plsql/commands keywords
 let s:keywords = [ 

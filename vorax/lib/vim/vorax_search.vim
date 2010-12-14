@@ -2,12 +2,12 @@
 " License: Apache License 2.0
 
 " no multiple loads allowed
-if exists("g:vorax_search")
+if exists("s:vorax_search")
   finish
 endif
 
 " mark as loaded
-let g:vorax_search = 1
+let s:vorax_search = 1
 
 runtime! vorax/lib/vim/vorax_utils.vim
 let s:tk_utils = Vorax_UtilsToolkit()

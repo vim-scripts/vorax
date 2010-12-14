@@ -3,21 +3,18 @@
 " License: Apache License 2.0
 
 " no multiple loads allowed
-if exists("g:vorax_cwin")
+if exists("s:vorax_cwin")
   finish
 endif
 
 " Mark as loaded
-let g:vorax_cwin = 1
+let s:vorax_cwin = 1
 
 " Enable logging
 if g:vorax_debug
   silent! call log#init('ALL', ['~/vorax.log'])
   silent! let s:log = log#getLogger(expand('<sfile>:t'))
 endif
-
-" Mark this as loaded
-let g:vorax_cwin = 1
 
 " The rwin object reference
 let s:cwin = {}
@@ -45,6 +42,7 @@ function s:cwin.FocusWindow() dict
       silent! exec "edit " .s:conn_file
     else
       exec win_nr . "wincmd w"
+      setlocal hid
       close!
       return
     endif
@@ -55,7 +53,9 @@ function s:cwin.FocusWindow() dict
   setlocal foldcolumn=0
   setlocal nospell
   setlocal nonu
+  setlocal nobuflisted
   setlocal cursorline
+  setlocal hid
   set syntax=sql
 
   if !filereadable(s:conn_file)

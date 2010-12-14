@@ -17,6 +17,26 @@ if v:version < 700
   finish
 endif
 
+" basic prerequisites check
+if !has('ruby')
+  " check for ruby support
+  echohl WarningMsg
+  echo "***warning*** VoraX needs ruby support"
+  echohl Normal
+  finish
+else
+  " is it ruby 1.8?
+  let rver = ''
+  ruby VIM.command("let rver='" + VERSION + "'")
+  if strpart(rver, 0, 3) != '1.8'
+    " check for ruby support
+    echohl WarningMsg
+    echo "***warning*** VoraX needs ruby 1.8 support 1.8. Found " . rver 
+    echohl Normal
+    finish
+  endif
+endif
+
 let g:loaded_vorax = "2.5"
 let s:keep_cpo = &cpo
 set cpo&vim
@@ -42,7 +62,7 @@ endif
 if !exists('g:vorax_resultwin_geometry')
   " The geometry of the result window. 
   " The syntax is the same as for split
-  let g:vorax_resultwin_geometry = "botright 20"
+  let g:vorax_resultwin_geometry = "botright 15"
 endif
 
 if !exists('g:vorax_resultwin_clear')
@@ -229,6 +249,11 @@ if !exists('g:vorax_update_title')
   let g:vorax_update_title = 1
 endif
 
+if !exists('g:vorax_quickfixwin_command')
+  " Which command to use in order to display the quickfix window
+  let g:vorax_quickfixwin_command = 'botright cwindow'
+endif
+
 if !exists('g:vorax_debug')
   " Whenever or not to write into a log file. This
   " feature relies to the existance of the log.vim
@@ -355,9 +380,28 @@ endif
 """""""""""""""""""""""""""""""""""
 " Define autocmds
 """""""""""""""""""""""""""""""""""
+function s:VoraxInitBuffer()
+  if exists('g:autoload_vorax') && !g:autoload_vorax
+    " VoraX is not load yet... Check if we really have
+    " to load now.
+    let ext = fnamemodify(bufname('%'), ':e')
+    let type = ""
+    for item in g:vorax_dbexplorer_file_extensions
+      if item.ext ==? ext
+        let type = item.type
+        call vorax#InitBuffer()
+        break
+      endif
+    endfor
+  else
+  	" if already loaded then go on with the initialization.
+  	call vorax#InitBuffer()
+  endif
+endfunction
+
 augroup VoraX
   " Analyze the file and set as a VoraX buffer
-  au BufNewFile,BufRead * call vorax#InitBuffer()
+  au BufNewFile,BufRead * call <SID>VoraxInitBuffer()
 augroup END
 
 """""""""""""""""""""""""""""""""""
@@ -377,6 +421,11 @@ endfunction
 
 " this function is used to register keys for db explorer
 function s:event_handler.dbexplorer_register_keys() dict
+endfunction
+
+" this function is called after displaying the output into
+" the result window. You may put here post-processing stuff.
+function s:event_handler.rwin_after_spit() dict
 endfunction
 
 """""""""""""""""""""""""""""""""""

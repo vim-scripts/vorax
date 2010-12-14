@@ -54,10 +54,6 @@ let s:oradoc = Vorax_OradocToolkit()
 " display errors on compilation.
 let s:processed_plsql_objects = []
 
-" This variable contains the buffer number from where the
-" last fg exec command was executed.
-let s:exec_from_buffer = bufnr('%')
-
 " Just let vim know that we are dealing with an Oracle database
 let g:sql_type_default = 'sqloracle'
 
@@ -122,10 +118,8 @@ function! vorax#Exec(cmd, show, feedback)
       if s:interface.last_error == ""
         if a:show
           let s:processed_plsql_objects = s:tk_parser.ModulesInfo(dbcommand)
-          let s:exec_from_buffer = bufnr('%')
-          silent! call s:log.debug('s:exec_from_buffer='.s:exec_from_buffer)
           " display results asynchronically
-          let s:tk_rwin.last_statement = {'cmd' : dbcommand, 'type' : 'oracle' }
+          let s:tk_rwin.last_statement = {'cmd' : dbcommand, 'type' : 'oracle', 'frombuf' : bufnr('%') }
           call s:tk_rwin.ShowResults(1)
         endif
       else
@@ -209,7 +203,7 @@ function! vorax#Connect(cstr)
     let result = s:tk_db.Connect(a:cstr)
     " reset the last executed statement
     call s:tk_rwin.SpitOutput(result)
-    let s:tk_rwin.last_statement = {'cmd' : '', 'type' : ''}
+    let s:tk_rwin.last_statement = {'cmd' : '', 'type' : '', 'frombuf': 0}
     if g:vorax_open_scratch_at_connect && bufnr('__scratch__.sql') == -1 && s:tk_db.connected
       " if not already opened
       call s:tk_utils.FocusCandidateWindow()
@@ -301,13 +295,13 @@ function! vorax#ShowLastCompileErrors()
           endif
         endfor
         " get the current line number within the exec buffer
-        let wnr = bufwinnr(s:exec_from_buffer)
+        let wnr = bufwinnr(s:tk_rwin.last_statement.frombuf)
         if wnr != -1
           " focus the exec buffer only if it's still open
           exe wnr . "wincmd w"
           let crr_line = line('.') - 1
           " add this error to our error list
-          let qerr += [{'bufnr' : s:exec_from_buffer, 'lnum' : str2nr(parts[0]) + crr_line + start_module_line, 
+          let qerr += [{'bufnr' : s:tk_rwin.last_statement.frombuf, 'lnum' : str2nr(parts[0]) + crr_line + start_module_line, 
                       \ 'col' : str2nr(parts[1]), 'text' : parts[5]}]
         endif
       endif
@@ -316,7 +310,7 @@ function! vorax#ShowLastCompileErrors()
     call setqflist(qerr, 'r')
     if len(qerr) > 0
       " show the error window only if we have errors
-      botright cwindow
+      exe g:vorax_quickfixwin_command
     else
       cclose
     endif
@@ -416,12 +410,13 @@ function! vorax#Describe(object)
     silent! call s:log.trace('computed object under cursor='.object)
     exe 'set isk=' . isk_bak
   endif
+  let crr_buf = bufnr('%')
   let result = vorax#Exec(
         \ "set linesize 100\n" .
         \ 'desc ' . object . ";\n" 
         \ , 0, g:vorax_messages['reading'])
+  let s:tk_rwin.last_statement = {'cmd' : 'call vorax#Describe(''' . object . ''')', 'type' : 'vim', 'frombuf' : crr_buf}
   call s:tk_rwin.SpitOutput(result)
-  let s:tk_rwin.last_statement = {'cmd' : 'call vorax#Describe(''' . object . ''')', 'type' : 'vim'}
   redraw
   echo g:vorax_messages['done']
   silent! call s:log.trace('end of vorax#Describe(object)')
@@ -444,12 +439,13 @@ function! vorax#DescribeVerbose(object)
   " check the object type
   let info = s:tk_db.ResolveDbObject(object)
   if has_key(info, 'schema') && (info.type == 2 || info.type == 4)
+    let crr_buf = bufnr('%')
     let vrx_script = s:interface.convert_path(s:sql_dir. "/desc_table.sql")
     let result = vorax#Exec(
           \ '@ ' . vrx_script . " " . shellescape(info.schema) . " " . shellescape(info.object)
           \ , 0, g:vorax_messages['reading'])
+    let s:tk_rwin.last_statement = {'cmd' : 'call vorax#DescribeVerbose(''' . object . ''')', 'type' : 'vim', 'frombuf' : crr_buf}
     call s:tk_rwin.SpitOutput(result)
-    let s:tk_rwin.last_statement = {'cmd' : 'call vorax#DescribeVerbose(''' . object . ''')', 'type' : 'vim'}
   else
     redraw
     call s:tk_utils.EchoErr(g:vorax_messages['invalid_desc'])
@@ -479,7 +475,12 @@ function vorax#InitBuffer()
     " set as an sql file if the file has the sql extenssion or
     " a the ext is within the registered ones.
     exe 'set ft=sql'
+  else
+  	" just exit
+  	return
   endif
+  " preserve the actual height of the sql/plsql window
+  set winfixheight
 endfunction
 
 " Go to the definition under the cursor

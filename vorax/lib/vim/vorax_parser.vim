@@ -3,12 +3,12 @@
 " License: Apache License 2.0
 
 " no multiple loads allowed
-if exists("g:vorax_parsing")
+if exists("s:vorax_parsing")
   finish
 endif
 
 " Mark as loaded
-let g:vorax_parsing = 1
+let s:vorax_parsing = 1
 
 " Parser object reference
 let s:parser = {}
