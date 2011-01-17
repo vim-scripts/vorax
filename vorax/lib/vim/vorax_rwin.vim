@@ -97,30 +97,11 @@ function s:ReExec()
 endfunction
 
 function s:RegisterKeys()
-  noremap <buffer> L :call <SID>ToggleLogging()<cr>
+  if g:vorax_key_for_toggle_logging != ""
+    exe "noremap <buffer> " . g:vorax_key_for_toggle_logging . " :call <SID>ToggleLogging()<cr>"
+  endif
   noremap <buffer> R :call <SID>ReExec()<cr>
-  nmap <buffer> K :call vorax#OradocSearch(expand('<cword>'))<cr>
-  xmap <buffer> K :call vorax#OradocSearch(vorax#SelectedBlock())<cr>
-  if maparg('<Leader>vd', 'n') == ""
-    nmap <buffer> <unique> <Leader>vd :VoraxDescribe<cr>
-  endif
-
-  if maparg('<Leader>vdv', 'n') == ""
-    nmap <buffer> <unique> <Leader>vdv :VoraxDescribeVerbose<cr>
-  endif
-
-  if mapcheck('<Leader>vg', 'n') == ""
-    nmap <buffer> <unique> <Leader>vg :VoraxGotoDefinition<cr>
-  endif
-
-  if maparg('<Leader>vdv', 'v') == ""
-    xmap <buffer> <unique> <Leader>vdv :VoraxDescribeVerboseVisual<cr>
-  endif
-
-  if maparg('<Leader>vd', 'v') == ""
-    xmap <buffer> <unique> <Leader>vd :VoraxDescribeVisual<cr>
-  endif
-
+  call s:tk_utils.CreateStandardMappings()
   " User defined mappings
   call s:handler.rwin_register_keys()
 endfunction
@@ -358,7 +339,8 @@ function s:rwin.SpitOutput(output) dict
   endif
   normal G$
   call append(index, a:output)
-  exe 'normal ' . (index == 0 ? 1 : index) . 'G'
+  " scroll the window
+  normal G$
   " if logging enabled then log
   if g:vorax_logging
     " an empty line just to nicely separate consequent execs

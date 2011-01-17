@@ -74,6 +74,8 @@ function s:db.Connect(cstr) dict
     " show information about the target database to which the user
     " is connected to
     let all_cmd .= "prompt &_O_VERSION\n"
+    let all_cmd .= "prompt \n"
+    let all_cmd .= "prompt \n"
     " add commands to initialize/set the sqlplus environment.
     let cmds = split(g:vorax_sqlplus_header, '\n')
     for cmd in cmds

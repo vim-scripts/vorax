@@ -182,10 +182,10 @@ Sql/PLSQL local buffer mappings (normal mode):
 <Leader>vdd	: Describe the database object under cursor using the detailed
 		  mode.
 <Leader>vg 	: Go to definition of the database object under cursor.
-<Leader>v1  : Executes a query and shows the results using the vertical 
-              columns layout. Pay attention that only queries should be
-              executed this way.
-K           : Oracledoc help for the word under cursor.
+<Leader>v1      : Executes a query and shows the results using the vertical 
+                  columns layout. Pay attention that only queries should be
+                  executed this way.
+K               : Oracledoc help for the word under cursor.
 
 Sql/PLSQL local buffer mappings (insert mode):
 <Leader>vl 	: While in insert mode start a vorax fuzzy search.
@@ -367,38 +367,54 @@ g:vorax_debug
 CUSTOMIZING KEY MAPPINGS                               *vorax-custom-mappings*
 
 If you don't like the default VoraX key mappings you are allowed to change
-them using a very simple mechanism. VoraX registers an event handler object
-(aka dictionary) with functions invoked in some well defined points within
-VoraX logic. You may overwrite these functions and provide your custom logic.
+them using a few global variables:
+
+Variable Name                             Default Value
+===============================           ========================
+g:vorax_key_for_connect                   <Leader>vc
+g:vorax_key_for_oradoc_search             <Leader>vh
+g:vorax_key_for_toggle_db_explorer        <Leader>vv
+g:vorax_key_for_toggle_conn_window        <Leader>vo
+g:vorax_key_for_toggle_result_window      <Leader>vr
+g:vorax_key_for_oradoc_under_cursor       K
+g:vorax_key_for_fuzzy_search              <Leader>vl
+g:vorax_key_for_exec_sql                  <Leader>ve
+g:vorax_key_for_exec_one                  <Leader>v1
+g:vorax_key_for_explain_plan              <Leader>vp
+g:vorax_key_for_explain_only              <Leader>vpo
+g:vorax_key_for_exec_buffer               <Leader>vb
+g:vorax_key_for_describe                  <Leader>vd
+g:vorax_key_for_describe_verbose          <Leader>vdv
+g:vorax_key_for_goto_def                  <Leader>vg
+g:vorax_key_for_toggle_logging            L
+
+VoraX also registers an event handler object (aka dictionary) with functions 
+invoked in some well defined points within VoraX logic. You may overwrite these 
+functions and provide new mappings, other than the ones you are allowed to
+change with the above global variables.
+
 At this moment the following functions are available:
 
 	buf_register_keys() => registers custom keys in sql/plsql buffers
 	rwin_register_keys() => custom keys for the results window
 	dbexplorer_register_keys() => custom keys for dbexplorer
+	rwin_after_spit() => run something after the output was displayed
 
-For example, if you want to use <Leader>d mapping for describing database
-objects instead of the default <Leader>vd you may put the following snippet
-into your .vimrc file:
+For example you may put the following snippet into your .vimrc file:
 
 runtime! plugin/vorax.vim
 let s:vorax_handler = Vorax_GetEventHandler()
 
 function! s:vorax_handler.buf_register_keys() dict
-  if maparg('<Leader>d', 'n') == ""
-    nmap <buffer> <unique> <Leader>d :VoraxDescribe<cr>
-  endif
+  " your mappings
 endfunction
 
 function! s:vorax_handler.rwin_register_keys() dict
-  if maparg('<Leader>d', 'n') == ""
-    nmap <buffer> <unique> <Leader>d :VoraxDescribe<cr>
-  endif
+  " your mappings
 endfunction
 
 function! s:vorax_handler.dbexplorer_register_keys() dict
-  if maparg('<Leader>d', 'n') == ""
-    nmap <buffer> <unique> <Leader>d :call feedkeys("\<Leader>vd")<cr>
-  endif
+  " your mappings
 endfunction
 
 ==============================================================================

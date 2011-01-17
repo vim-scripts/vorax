@@ -11,6 +11,7 @@ class UnixPIO
   def initialize(command)
     @reader, @writer, @pid = PTY.spawn(command)
     @writer.sync = true
+    @reader.sync = true
   end
 
   def write(text)
@@ -30,5 +31,4 @@ class UnixPIO
   end
 
 end
-
 

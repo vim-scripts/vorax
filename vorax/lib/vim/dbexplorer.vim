@@ -84,8 +84,12 @@ endfunction
 function! Vorax_InitMappings()
 	noremap <silent> <buffer> o :call VrxTree_OpenNode()<CR>
 	noremap <silent> <buffer> R :call VrxTree_RefreshNode()<CR>
-	noremap <silent> <buffer> <Leader>vd :call <SID>DescribeCurrentObject(0)<CR>
-	noremap <silent> <buffer> <Leader>vdv :call <SID>DescribeCurrentObject(1)<CR>
+  if g:vorax_key_for_describe != ""
+    exe "noremap <silent> <buffer> " . g:vorax_key_for_describe . " :call <SID>DescribeCurrentObject(0)<CR>"
+  endif
+	if g:vorax_key_for_describe_verbose != ""
+    exe "noremap <silent> <buffer>  " . g:vorax_key_for_describe_verbose . " :call <SID>DescribeCurrentObject(1)<CR>"
+  endif
   
   " User defined mappings
   let handler = Vorax_GetEventHandler()

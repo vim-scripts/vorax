@@ -217,72 +217,90 @@ function s:utils.UnderCursorStatement() dict
   return retval
 endfunction
 
-" Create the mappings for a vorax buffer.
-function s:utils.CreateBufferMappings() dict
-  " defines vorax mappings for the current buffer
-  if maparg('<Leader>vl', 'i') == ""
-    imap <buffer> <unique> <Leader>vl <Esc>:VoraxSearch<cr>
+function s:utils.CreateStandardMappings() dict
+  if g:vorax_key_for_describe != ""
+    if maparg(g:vorax_key_for_describe, 'n') == ""
+      exe "nmap <buffer> <unique> " . g:vorax_key_for_describe . " :VoraxDescribe<cr>"
+    endif
+
+    if maparg(g:vorax_key_for_describe, 'v') == ""
+      exe "xmap <buffer> <unique> " . g:vorax_key_for_describe " :VoraxDescribeVisual<cr>"
+    endif
   endif
 
-  if maparg('<Leader>ve', 'n') == ""
-    nmap <buffer> <unique> <Leader>ve :VoraxExecUnderCursor<cr>
+  if g:vorax_key_for_describe_verbose != ""
+    if maparg(g:vorax_key_for_describe_verbose, 'n') == ""
+      exe "nmap <buffer> <unique> " . g:vorax_key_for_describe_verbose . " :VoraxDescribeVerbose<cr>"
+    endif
+
+    if maparg(g:vorax_key_for_describe_verbose, 'v') == ""
+      exe "xmap <buffer> <unique> " . g:vorax_key_for_describe_verbose . " :VoraxDescribeVerboseVisual<cr>"
+    endif
   endif
 
-  if maparg('<Leader>ve', 'v') == ""
-    xmap <buffer> <unique> <Leader>ve :VoraxExecVisualSQL<cr>
-  endif
-
-  if maparg('<Leader>v1', 'n') == ""
-    nmap <buffer> <unique> <Leader>v1 :VoraxQueryVerticalLayout<cr>
-  endif
-
-  if maparg('<Leader>v1', 'v') == ""
-    xmap <buffer> <unique> <Leader>v1 :VoraxQueryVerticalLayoutVisual<cr>
-  endif
-
-  if maparg('<Leader>vp', 'n') == ""
-    nmap <buffer> <unique> <Leader>vp :VoraxExplainUnderCursor<cr>
-  endif
-
-  if maparg('<Leader>vpo', 'n') == ""
-    nmap <buffer> <unique> <Leader>vpo :VoraxExplainOnlyUnderCursor<cr>
-  endif
-
-  if maparg('<Leader>vp', 'v') == ""
-    xmap <buffer> <unique> <Leader>vp :VoraxExplainVisualSQL<cr>
-  endif
-
-  if maparg('<Leader>vpo', 'v') == ""
-    xmap <buffer> <unique> <Leader>vpo :VoraxExplainOnlyVisualSQL<cr>
-  endif
-
-  if maparg('<Leader>vb', 'n') == ""
-    nmap <buffer> <unique> <Leader>vb :VoraxExecBuffer<cr>
-  endif
-
-  if maparg('<Leader>vd', 'n') == ""
-    nmap <buffer> <unique> <Leader>vd :VoraxDescribe<cr>
-  endif
-
-  if maparg('<Leader>vdv', 'n') == ""
-    nmap <buffer> <unique> <Leader>vdv :VoraxDescribeVerbose<cr>
-  endif
-
-  if maparg('<Leader>vg', 'n') == ""
-    nmap <buffer> <unique> <Leader>vg :VoraxGotoDefinition<cr>
-  endif
-
-  if maparg('<Leader>vdv', 'v') == ""
-    xmap <buffer> <unique> <Leader>vdv :VoraxDescribeVerboseVisual<cr>
-  endif
-
-  if maparg('<Leader>vd', 'v') == ""
-    xmap <buffer> <unique> <Leader>vd :VoraxDescribeVisual<cr>
+  if g:vorax_key_for_goto_def != "" && maparg(g:vorax_key_for_goto_def, 'n') == ""
+    exe "nmap <buffer> <unique> " . g:vorax_key_for_goto_def . " :VoraxGotoDefinition<cr>"
   endif
 
   " mapping for get help for the word under cursor
-  nmap <buffer> K :call vorax#OradocSearch(expand('<cword>'))<cr>
-  xmap <buffer> K :call vorax#OradocSearch(vorax#SelectedBlock())<cr>
+  if g:vorax_key_for_oradoc_under_cursor != ""
+    exe "nmap <buffer> " . g:vorax_key_for_oradoc_under_cursor . " :call vorax#OradocSearch(expand('<cword>'))<cr>"
+    exe "xmap <buffer> " . g:vorax_key_for_oradoc_under_cursor . " :call vorax#OradocSearch(vorax#SelectedBlock())<cr>"
+  end
+endfunction
+
+" Create the mappings for a vorax buffer.
+function s:utils.CreateBufferMappings() dict
+  " defines vorax mappings for the current buffer
+  if g:vorax_key_for_fuzzy_search != "" && maparg(g:vorax_key_for_fuzzy_search, 'i') == ""
+    exe "imap <buffer> <unique> " . g:vorax_key_for_fuzzy_search . " <Esc>:VoraxSearch<cr>"
+  endif
+
+  if g:vorax_key_for_exec_sql != "" 
+  	if maparg(g:vorax_key_for_exec_sql, 'n') == ""
+      exe "nmap <buffer> <unique> " . g:vorax_key_for_exec_sql . " :VoraxExecUnderCursor<cr>"
+    endif
+
+    if maparg(g:vorax_key_for_exec_sql, 'v') == ""
+      exe "xmap <buffer> <unique> " . g:vorax_key_for_exec_sql . " :VoraxExecVisualSQL<cr>"
+    endif
+  endif
+
+  if g:vorax_key_for_exec_one != ""
+    if maparg(g:vorax_key_for_exec_one, 'n') == ""
+      exe "nmap <buffer> <unique> " . g:vorax_key_for_exec_one . " :VoraxQueryVerticalLayout<cr>"
+    endif
+
+    if maparg(g:vorax_key_for_exec_one, 'v') == ""
+      exe "xmap <buffer> <unique> " . g:vorax_key_for_exec_one . " :VoraxQueryVerticalLayoutVisual<cr>"
+    endif
+  endif
+
+  if g:vorax_key_for_explain_plan != ""
+    if maparg(g:vorax_key_for_explain_plan, 'n') == ""
+      exe "nmap <buffer> <unique> " . g:vorax_key_for_explain_plan . " :VoraxExplainUnderCursor<cr>"
+    endif
+
+    if maparg(g:vorax_key_for_explain_plan, 'v') == ""
+      exe "xmap <buffer> <unique> " . g:vorax_key_for_explain_plan . " :VoraxExplainVisualSQL<cr>"
+    endif
+  endif
+
+  if g:vorax_key_for_explain_only != ""
+    if maparg(g:vorax_key_for_explain_only, 'n') == ""
+      exe "nmap <buffer> <unique> " . g:vorax_key_for_explain_only . " :VoraxExplainOnlyUnderCursor<cr>"
+    endif
+
+    if maparg(g:vorax_key_for_explain_only, 'v') == ""
+      exe "xmap <buffer> <unique> " . g:vorax_key_for_explain_only . " :VoraxExplainOnlyVisualSQL<cr>"
+    endif
+  endif
+
+  if g:vorax_key_for_exec_buffer != "" && maparg(g:vorax_key_for_exec_buffer, 'n') == ""
+    exe "nmap <buffer> <unique> " . g:vorax_key_for_exec_buffer . " :VoraxExecBuffer<cr>"
+  endif
+
+  call self.CreateStandardMappings()
 
   " User defined mappings
   let handler = Vorax_GetEventHandler()
