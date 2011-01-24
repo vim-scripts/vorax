@@ -96,9 +96,22 @@ function s:ReExec()
   endif
 endfunction
 
+" Toggle notification for finished statements
+function s:ToggleNotify()
+  let g:vorax_monitor_end_exec = !g:vorax_monitor_end_exec
+  if g:vorax_monitor_end_exec
+  	echo g:vorax_messages['notification_start']
+  else
+  	echo g:vorax_messages['notification_stop']
+  endif
+endfunction
+
 function s:RegisterKeys()
   if g:vorax_key_for_toggle_logging != ""
     exe "noremap <buffer> " . g:vorax_key_for_toggle_logging . " :call <SID>ToggleLogging()<cr>"
+  endif
+  if g:vorax_key_for_toggle_notify != ""
+    exe "noremap <buffer> " . g:vorax_key_for_toggle_notify . " :call <SID>ToggleNotify()<cr>"
   endif
   noremap <buffer> R :call <SID>ReExec()<cr>
   call s:tk_utils.CreateStandardMappings()
@@ -129,6 +142,7 @@ function s:rwin.ShowResults(monitor) dict
   setlocal nonu
   setlocal cursorline
   setlocal modifiable
+  exe 'setlocal statusline=\ Position:\ %l/%L\ -\ %P%=\ Logging:\ %{Vorax_SwitchName(g:vorax_logging)}\ \|\ Monitoring:\ %{Vorax_SwitchName(g:vorax_monitor_end_exec)}\ '
   call s:RegisterKeys()
   " highlight errors
   match ErrorMsg /^\(ORA-\|SP-\).*/
@@ -157,6 +171,7 @@ endfunction
 
 " Starts the monitor for the results window.
 function s:StartMonitor()
+  let s:start_time = localtime()
   call s:rwin.FocusResultsWindow(0)
   if g:vorax_inline_prompt
     inoremap <buffer> <cr> <esc>:call <SID>ProcessUserInput()<cr>
@@ -167,6 +182,15 @@ function s:StartMonitor()
   au VoraX CursorHold <buffer> call s:FetchResults()
   call feedkeys("f\e")  
   silent! call s:log.debug('RWin Monitor started.')
+endfunction
+
+" Notify user about an exec of a statement being finished.
+function s:Notify()
+  if g:vorax_monitor_end_exec || ( (g:vorax_notify_long_running > 0)
+        \ && ((localtime() - s:start_time) >= g:vorax_notify_long_running) )
+    " notify user
+    exe g:vorax_notify_command
+  endif
 endfunction
 
 " Stop the monitor for the results window.
@@ -217,7 +241,7 @@ function s:FetchResults()
     " could be different... just in case, set the title
     let title = ''
     if s:interface.last_error == '' && g:vorax_update_title
-      let title = s:tk_db.ConnectionOwner()
+      let title = s:interface.connected_to
       let &titlestring = title
       if title !~ '^[^@]\+@[^@]\+$'
         " mark it as disconnected
@@ -239,6 +263,8 @@ function s:FetchResults()
       " result window therefore we need an empty line above
       let s:last_truncated = 0
     endif
+    " Notify the user about this being done
+    call s:Notify()
     " invoke after display
     call s:handler.rwin_after_spit()
     " restore focus
@@ -352,6 +378,12 @@ function s:rwin.SpitOutput(output) dict
     " flush log
     call s:FlushLog()
   endif
+  if g:vorax_monitor_end_exec || ( (g:vorax_notify_long_running > 0)
+        \ && ((localtime() - s:start_time) >= g:vorax_notify_long_running) )
+    " notify user
+    echom g:vorax_notify_command
+    exe g:vorax_notify_command
+  endif
   " invoke after display
   call s:handler.rwin_after_spit()
   " restore focus
@@ -428,6 +460,10 @@ function! s:CancelExec()
   endif
 endfunction
 
+" Used for rwin statusbar
+function Vorax_SwitchName(setting)
+  return a:setting ? 'ON ' : 'OFF'
+endfunction
 
 " Get the rwin object
 function Vorax_RwinToolkit()

@@ -125,9 +125,8 @@ function s:db.Connect(cstr) dict
           silent! call s:log.debug('Output: '. string(output))
           " check the connection
           if g:vorax_update_title
-            let connectedTo = self.ConnectionOwner()
-            if connectedTo =~ '^[^@]\+@[^@]\+$'
-              let &titlestring = connectedTo
+            if s:interface.connected_to =~ '^[^@]\+@[^@]\+$'
+              let &titlestring = s:interface.connected_to
               let self.connected = 1
             endif
           else
@@ -209,7 +208,7 @@ function s:db.Delimitator(cmd) dict
     silent! call s:log.trace('An ending slash was found. No delimitator is returned.')
     return ''
   endif
-  if a:cmd =~ '\vend\_s*"?[a-z0-9_$#]*"?\_s*;\_s*\_$'
+  if a:cmd =~? '\v\_s+end\_s*;\_s*\_$'
     " a plsql block was given
     silent! call s:log.trace('A plsql block was found. Return a slash.')
     return "\n/\n"
@@ -294,19 +293,19 @@ function s:db.Exec(cmd, feedback) dict
 endfunction
 
 " Get the user@db for the current connection.
-function s:db.ConnectionOwner() dict
-  silent! call s:log.trace('start of s:db:ConnectionOwner')
-  let result = self.Exec("prompt &_USER@&_CONNECT_IDENTIFIER", "")
-  " set the title
-  if len(result) > 0
-    silent! call s:log.trace('return: ' . result[0])
-    return result[0]
-  else
-    " an error has occured
-    silent! call s:log.error(s:interface.last_error)
-    return ""
-  endif
-endfunction
+"function s:db.ConnectionOwner() dict
+  "silent! call s:log.trace('start of s:db:ConnectionOwner')
+  "let result = self.Exec("prompt &_USER@&_CONNECT_IDENTIFIER", "")
+  "" set the title
+  "if len(result) > 0
+    "silent! call s:log.trace('return: ' . result[0])
+    "return result[0]
+  "else
+    "" an error has occured
+    "silent! call s:log.error(s:interface.last_error)
+    "return ""
+  "endif
+"endfunction
 
 " This function is used to resolve a object name within the database
 " context. It returnes a dictionary with the following keys:

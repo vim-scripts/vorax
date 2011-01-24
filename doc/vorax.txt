@@ -357,6 +357,25 @@ g:vorax_quickfixwin_command
   a custom VIM function which may choose to display the errors in a differnt
   way.
 
+g:vorax_monitor_end_exec
+  -> this setting allow to monitor when a statement has finished. If 1 (which
+  means monitoring enabled) then after the statement has finished the command
+  given by g:vorax_notify_command will be invoked. If 0 then monitoring is
+  disabled except a value grater than 0 is specified for
+  g:vorax_notify_long_running.
+
+g:vorax_notify_command
+  -> the command to be used for sending notifications. It can be a call to
+  your defined Vim function or an external OS command.
+
+g:vorax_notify_long_running
+  -> if set on a value grater than 0 then the notification command (defined by
+  g:vorax_notify_command) will be invoked only if the execution time of a
+  statement will be grater than the number of seconds set by this global
+  variable. The notification command will be invoked despite of
+  the value of g:vorax_monitor_end_exec being set or not. Setting this
+  variable on 0 disables automatic notification for long running statements.
+
 g:vorax_debug
 	->  this variable controlls whenever or not to write into a log file.
 	This feature depends on the log.vim plugin which is available on 
@@ -387,6 +406,7 @@ g:vorax_key_for_describe                  <Leader>vd
 g:vorax_key_for_describe_verbose          <Leader>vdv
 g:vorax_key_for_goto_def                  <Leader>vg
 g:vorax_key_for_toggle_logging            L
+g:vorax_key_for_toggle_notify             M
 
 VoraX also registers an event handler object (aka dictionary) with functions 
 invoked in some well defined points within VoraX logic. You may overwrite these 
@@ -402,20 +422,31 @@ At this moment the following functions are available:
 
 For example you may put the following snippet into your .vimrc file:
 
-runtime! plugin/vorax.vim
-let s:vorax_handler = Vorax_GetEventHandler()
+function Vorax_Hooks()
 
-function! s:vorax_handler.buf_register_keys() dict
-  " your mappings
+	let s:vorax_handler = Vorax_GetEventHandler()
+
+	function! s:vorax_handler.buf_register_keys() dict
+	  " your mappings
+	endfunction
+
+	function! s:vorax_handler.rwin_register_keys() dict
+	  " your mappings
+	endfunction
+
+	function! s:vorax_handler.dbexplorer_register_keys() dict
+	  " your mappings
+	endfunction
+
+	function! s:vorax_handler.rwin_after_spit() dict
+	  " whatever you like
+	endfunction
+
 endfunction
 
-function! s:vorax_handler.rwin_register_keys() dict
-  " your mappings
-endfunction
+au VimEnter * :call Vorax_Hooks()
+au GuiEnter * :call Vorax_Hooks()
 
-function! s:vorax_handler.dbexplorer_register_keys() dict
-  " your mappings
-endfunction
 
 ==============================================================================
 USING DBEXPLORER                                            *vorax-dbexplorer*

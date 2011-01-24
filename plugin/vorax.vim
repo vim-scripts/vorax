@@ -163,6 +163,8 @@ if !exists('g:vorax_messages')
                         \  "help_search_error"                : "Error in search!",
                         \  "no_pattern"                       : "No pattern provided.",
                         \  "oradoc_prompt"                    : "OraDoc Search: ",
+                        \  "notification_start"               : "Monitor ON.",
+                        \  "notification_stop"                : "Monitor OFF.",
                         \}
 endif
 
@@ -252,6 +254,26 @@ endif
 if !exists('g:vorax_quickfixwin_command')
   " Which command to use in order to display the quickfix window
   let g:vorax_quickfixwin_command = 'botright cwindow'
+endif
+
+if !exists('g:vorax_monitor_end_exec')
+  " Whenever or not to notify when the execution of a statement is finished
+  let g:vorax_monitor_end_exec = 0
+endif
+
+if !exists('g:vorax_notify_command')
+  " How to notify the user.
+  let g:vorax_notify_command = 'echom "Ieeei, done!"'
+endif
+
+if !exists('g:vorax_notify_long_running')
+  " If the execution of a statement will last more seconds than it is
+  " specified by this setting then the g:vorax_notify_command will be 
+  " invoked, despite the g:vorax_monitor_end_exec is enabled or
+  " disabled. If g:vorax_notify_long_running is 0 (which means
+  " disabled) then the notification will be invoked only if
+  " g:vorax_monitor_end_exec is enabled.
+  let g:vorax_notify_long_running = 0
 endif
 
 if !exists('g:vorax_debug')
@@ -442,6 +464,10 @@ endif
 if !exists('g:vorax_key_for_toggle_logging')
   let g:vorax_key_for_toggle_logging = "L"
 endif
+
+if !exists('g:vorax_key_for_toggle_notify')
+  let g:vorax_key_for_toggle_notify = "M"
+endif
 """""""""""""""""""""""""""""""""""
 " Define autocmds
 """""""""""""""""""""""""""""""""""
@@ -519,6 +545,11 @@ endfunction
 function Vorax_GetInterface()
   return s:interface
 endfunction
+
+function s:Vorax_SwitchName(setting)
+  return a:setting ? 'ON' : 'OFF'
+endfunction
+
 
 let &cpo = s:keep_cpo
 unlet s:keep_cpo

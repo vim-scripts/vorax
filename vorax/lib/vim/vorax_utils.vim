@@ -119,6 +119,8 @@ function s:utils.UnderCursorStatement() dict
   set whichwrap+=<,>,h,l
   let old_wrapscan=&wrapscan
   let &wrapscan = 0
+  set ve=
+  let old_ve = &ve
   let old_search=@/
   let old_line = line('.')
   let old_col = col('.')
@@ -213,6 +215,7 @@ function s:utils.UnderCursorStatement() dict
   let @/=old_search
   let retval = [start_line, start_col, stop_line, stop_col, statement, rel_pos]
   exe 'set whichwrap=' . whichwrap_bak
+  exe 'set ve=' . old_ve
   silent! call s:log.trace('end of s:utils.UnderCursorStatement: returned value=' . string(retval))
   return retval
 endfunction

@@ -25,10 +25,15 @@ if has('win32') || has('win64')
   exe 'ruby require "' . substitute(s:vrx_lib, '\', '/', 'g') . '"'
 
   " define the interface object
-  let s:interface = {'more' : 0, 'truncated' : 0, 'last_error' : ""}
+  let s:interface = {'more' : 0, 'truncated' : 0, 'last_error' : "", 'connected_to' : '@'}
 
   " the last line read
   let s:last_line = ""
+
+  function Eof()
+    return "\nprompt " . s:end_marker . "\n" .
+         \ (g:vorax_update_title ? "prompt :&_USER@&_CONNECT_IDENTIFIER:\n" : "")
+  endfunction
 
   function s:interface.startup() dict
     " startup the interface
@@ -72,14 +77,21 @@ if has('win32') || has('win64')
         end_marker = VIM::evaluate('s:end_marker')
         end_pattern = Regexp.new(end_marker + '$')
         lines = buffer.gsub(/\r/, '').split(/\n/)
-        lines.map do |line| 
+        lines.each_with_index do |line, i| 
           if VIM::evaluate('self.truncated') == 1
             last_line = VIM::evaluate('s:last_line') + line
           end
           if end_pattern.match(last_line) || end_pattern.match(line)
             VIM::command('let self.more = 0')
+            remaining = ''
+            remaining = lines[i+1..-1].join("\n") if i < lines.size
             # consume the output after the marker
-            $io.read
+            remaining += tail while tail = $io.read
+            if remaining =~ /:([^@]*@[^:]*):$/
+              VIM::command("let self.connected_to = '#{$~[1]}'")
+            else
+              VIM::command("let self.connected_to = '@'")
+            end
             break
           else
             l = line.gsub(/'/, "''")
@@ -106,7 +118,7 @@ EOF
     " now, embed our command
     let content = dbcommand . "\n"
     " add the end marker
-    let content .= "prompt " . s:end_marker . "\n"
+    let content .= Eof()
     " write everything into a nice sql file
     call writefile(split(content, '\n'), s:temp_in) 
     return '@' . s:temp_in
@@ -117,7 +129,7 @@ EOF
   endfunction
 
   function s:interface.mark_end() dict
-    call self.send("\nprompt " . s:end_marker)
+    call self.send(Eof())
   endfunction
 
   function s:interface.shutdown() dict
