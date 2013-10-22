@@ -1,20 +1,15 @@
 This is a mirror of http://www.vim.org/scripts/script.php?script_id=3154
 
-VoraX aims to be a simple, yet a powerful IDE for Oracle databases. Instead of reinventing the wheel, VoraX relies on the well-known SqlPLUS which is actually used to connect to the database, to execute and to get the results back. However, this interaction is hidden from the user who just uses his/her Vim environment without knowing that, behind, a SqlPLUS process does all the work.
-
-The big advantage of this approach is that, in VoraX, almost all SqlPLUS commands may be used without any problems. You can format columns, set pagination, autotrace queries etc. Basically, everything you used to type on your SqlPLUS prompt is guaranteed to work in VoraX, except maybe for some exotic cases (e.g. using vim in console mode, having the EDITOR set to a terminal editor and executing the "ed" sqlplus command).
-
-Another advantage is that you'll get an efficient Oracle IDE with a very small footprint. For Oracle DBAs this is huge because they don't need heavy tools with a lot of features they never use. Likewise, the fact that VoraX may be used within a regular console makes it suitable for server environments.
+Vorax is a simple yet powerful IDE for Oracle databases, built on top of the widely known Vim editor and Oracle SqlPLUS.
 
 FEATURES
 
-    * 99.9% of the sqlplus commands supported
-    * advanced code completion system
-    * Windows and UNIX systems are supported
-    * a nice results window with highlighting for errors and logging support 
-    * a database explorer which may be used to browse the database objects in a hierarchical way
-    * support for editing and compiling PLSQL objects like packages, types etc.
-    * fuzzy search for database items
-    * offline search through the oracle documentation
+   * Advanced code completion
+   * A nice database explorer
+   * Connections manager
+   * Formatted output
+   * PL/SQL support
+   * Integrated Oracle documentation search
 
-This project is hosted on: http://code.google.com/p/vorax/
+This project is hosted on: https://github.com/talek/vorax4-beta
+VoraX Blog: http://vorax-ide.blogspot.com/
