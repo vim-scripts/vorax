@@ -13,7 +13,6 @@
 --   1st parameter = the word prefix
 --   2nd parameter = the maximum number of items to be returned
 
-set define off
 set echo off
 set define '&'
 set verify off
@@ -56,7 +55,9 @@ select *
      where owner = 'SYS'
        and object_name = 'STANDARD'
        and procedure_name like replace(replace('&1', '_', '"_'), '%', '"%') || '%' escape '"'
-
   ) 
  where rownum <= &2
 order by 1;
+
+undefine 1
+undefine 2

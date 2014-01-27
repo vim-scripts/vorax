@@ -3,7 +3,7 @@
 " Description: Implements the output window of Vorax.
 " License:     see LICENSE.txt
 
-let s:name = "__VORAX_OUTPUT__"
+let s:name = "/__VORAX_OUTPUT__"
 let s:read_chunk_size = 30000
 let s:first_chunk = 0
 let s:vorax_executing = 0
@@ -52,10 +52,10 @@ function! vorax#output#Close() abort " {{{
     if winnr != -1
       exec winnr . 'wincmd w'
       try
-				close!
+        close!
       catch /^Vim\%((\a\+)\)\=:E444/
-				echo 'Last window baby!'
-			endtry
+        echo 'Last window baby!'
+      endtry
       wincmd p
     endif
   endif
@@ -65,7 +65,9 @@ function! vorax#output#Spit(text) abort " {{{
   call vorax#output#Open()
   normal! G
   let lines = split(a:text, '\n', 1)
-  call VORAXDebug("vorax#output#Spit: " . string(lines))
+  if len(lines) > 1 && lines[0] != ''
+    call VORAXDebug("vorax#output#Spit: " . string(lines))
+  endif
   let last_line = line('$')
   if s:first_chunk && 
         \ len(lines) > 1 && 
@@ -77,11 +79,24 @@ function! vorax#output#Spit(text) abort " {{{
     call remove(lines, 0)
   endif
   if len(lines) > 0
+    if s:first_chunk && g:vorax_output_cursor_on_top
+      if lines[0] == ""
+        let s:current_line = last_line + 1
+      else
+        let s:current_line = last_line 
+      endif
+    endif
     call setline(last_line, getline(last_line) . lines[0])
     call append(last_line, lines[1:])
     normal! G
   endif
 endfunction " }}}
+
+function! vorax#output#SpitAll(text) abort "{{{
+  call vorax#output#PrepareSpit()
+  call vorax#output#Spit(a:text)
+  call vorax#output#PostSpit()
+endfunction "}}}
 
 function! vorax#output#Clear() abort " {{{
   let outputBufNo = bufnr(s:name)
@@ -99,13 +114,10 @@ function! vorax#output#Clear() abort " {{{
 endfunction " }}}
 
 function! vorax#output#IsWaitingForData() abort"{{{
-	return s:vorax_executing
+  return s:vorax_executing
 endfunction"}}}
 
-function! vorax#output#SpitterStart() abort " {{{
-  let s:vorax_executing = 1
-  let s:save_ut = &ut
-  set ut=50
+function! vorax#output#PrepareSpit() abort "{{{
   if !g:vorax_output_window_sticky_cursor
     let s:originating_window = winnr()
   endif
@@ -114,19 +126,40 @@ function! vorax#output#SpitterStart() abort " {{{
   if !g:vorax_output_window_append
     call vorax#output#Clear()
   endif
+endfunction "}}}
+
+function! vorax#output#SpitterStart() abort " {{{
+  let s:vorax_executing = 1
+  let s:save_ut = &ut
+  set ut=50
+  call vorax#output#PrepareSpit()
   au VoraX CursorHold <buffer> call vorax#output#FetchAndSpit()
 endfunction " }}}
+
+function! vorax#output#PostSpit() abort "{{{
+  call vorax#sqlplus#UpdateSessionOwner()
+  " update dbexplorer
+  call vorax#explorer#RefreshRoot()
+  call vorax#output#Open()
+  if g:vorax_output_cursor_on_top
+    exe "normal! " . s:current_line . 'G'
+  endif
+  if !g:vorax_output_window_sticky_cursor
+    exe s:originating_window.'wincmd w'
+  endif
+endfunction "}}}
 
 function! vorax#output#SpitterStop() abort " {{{
   call vorax#output#Open()
   au! VoraX CursorHold <buffer>
-  if !g:vorax_output_window_sticky_cursor
-    exe s:originating_window.'wincmd w'
+  call vorax#output#PostSpit()
+  let prop = vorax#sqlplus#Properties()
+  if filereadable(prop['store_set'])
+    call VORAXDebug('vorax#output#SpitterStop(): sp_options='.string(readfile(prop['store_set'], 'b')))
   endif
-  call vorax#sqlplus#UpdateSessionOwner()
   if exists("s:save_ut")
-		let &ut = s:save_ut
-	endif
+    let &ut = s:save_ut
+  endif
   let s:vorax_executing = 0
 endfunction " }}}
 
@@ -135,7 +168,7 @@ function! vorax#output#FetchAndSpit() abort " {{{
     if vorax#ruby#SqlplusEofOutput() 
       call vorax#output#SpitterStop()
       " clear the throbber message
-      echom ""
+      echo ""
       redraw
     else
       let chunk = vorax#ruby#SqlplusReadOutput(s:read_chunk_size)
@@ -193,12 +226,30 @@ function! vorax#output#ToggleAppend() abort"{{{
   endif
 endfunction"}}}
 
+function! vorax#output#ToggleFullHeading() abort"{{{
+  let g:vorax_output_full_heading = !g:vorax_output_full_heading
+  if g:vorax_output_full_heading
+    echo 'Full heading mode ON'
+  else
+    echo 'Full heading mode OFF'
+  endif
+endfunction"}}}
+
 function! vorax#output#ToggleSticky() abort"{{{
   let g:vorax_output_window_sticky_cursor = !g:vorax_output_window_sticky_cursor
   if g:vorax_output_window_sticky_cursor
     echo 'Sticky mode ON'
   else
     echo 'Sticky mode OFF'
+  endif
+endfunction"}}}
+
+function! vorax#output#ToggleTop() abort"{{{
+  let g:vorax_output_cursor_on_top = !g:vorax_output_cursor_on_top
+  if g:vorax_output_cursor_on_top
+    echo 'Top mode ON'
+  else
+    echo 'Top mode OFF'
   endif
 endfunction"}}}
 
@@ -213,6 +264,15 @@ function! vorax#output#Abort() abort"{{{
         throw 'VRX-02'
       end
       if cancelled
+        " it's a good thing to revert to default options
+        let sp_props = vorax#sqlplus#Properties()
+        if filereadable(sp_props['store_set'])
+          call vorax#sqlplus#ExecImmediate('@' . sp_props['store_set'])
+        endif
+        if !vorax#utils#IsEmpty(sp_props['cols_clear'])
+          " clear columns if previous formatting was in place
+          call vorax#sqlplus#ExecImmediate(sp_props['cols_clear'])
+        endif
         call vorax#output#Spit("\n*** Cancelled! ***")
       endif
     endif
@@ -224,8 +284,12 @@ function! vorax#output#Abort() abort"{{{
       call vorax#sqlplus#ExecImmediate("connect " . sqlplus_session_props['connstr'])
       let reconnected = " and reconnected "
     endif
-    call vorax#output#Spit("\n*** Session aborted" . reconnected . "! ***")
     call vorax#sqlplus#UpdateSessionOwner()
+    if vorax#sqlplus#SessionOwner() == '@'
+      " reconnected my ass
+      let reconnected = ''
+    endif
+    call vorax#output#Spit("\n*** Session aborted" . reconnected . "! ***")
     echo
   endtry
 endfunction"}}}
@@ -268,19 +332,40 @@ function! vorax#output#StatusLine() abort"{{{
   elseif s:funnel == 3
     let format = 'TABLEZIP'
   endif
+  " column heading
+  let col_head = (g:vorax_output_full_heading ? ' HEADING' : '')
   " append mode
-  let append = (g:vorax_output_window_append ? 'APPEND' : '')
+  let append = (g:vorax_output_window_append ? ' APPEND' : '')
   " sticky mode
-  let sticky = (g:vorax_output_window_sticky_cursor ? 'STICKY' : '')
+  let sticky = (g:vorax_output_window_sticky_cursor ? ' STICKY' : '')
+  " top mode
+  let top = (g:vorax_output_cursor_on_top ? ' TOP' : '')
+  " limit rows
+  let limit_rows = (exists('g:vorax_limit_rows') ? ' LIMIT=' . g:vorax_limit_rows : '')
   return throbber .
         \ session_owner . 
         \ '%= ' . format . 
-        \ ' ' . append .
-        \ ' ' . sticky .
+        \ col_head .
+        \ append .
+        \ top .
+        \ sticky .
+        \ limit_rows .
         \ ' '
 endfunction"}}}
 
+function! vorax#output#ToggleLimitRows() "{{{
+  if !exists('g:vorax_limit_rows')
+    let val = input('Limit rows to: ', '')
+    if val =~ '\m^[0-9]\+$'
+      let g:vorax_limit_rows=str2nr(val)
+    endif
+  else
+    unlet g:vorax_limit_rows
+  endif
+endfunction "}}}
+
 function! s:ConfigureBuffer() abort " {{{
+  let &ft="outputvorax"
   setlocal winfixheight
   setlocal hidden
   setlocal winfixheight
@@ -298,21 +383,15 @@ function! s:ConfigureBuffer() abort " {{{
   setlocal isk+=#
   exe 'setlocal statusline=' . g:vorax_output_window_statusline
   
-  " set local commands
-  command! -n=0 -bar VORAXOutputClear :call vorax#output#Clear()
-  command! -n=0 -bar VORAXOutputVertical :call vorax#output#ToggleFunnel(1)
-  command! -n=0 -bar VORAXOutputPagezip :call vorax#output#ToggleFunnel(2)
-  command! -n=0 -bar VORAXOutputTablezip :call vorax#output#ToggleFunnel(3)
-  command! -n=0 -bar VORAXOutputToggleAppend :call vorax#output#ToggleAppend()
-  command! -n=0 -bar VORAXOutputToggleSticky :call vorax#output#ToggleSticky()
-  command! -n=0 -bar VORAXOutputAskUser :call vorax#output#AskUser()
-  command! -n=0 -bar VORAXOutputAbort :call vorax#output#Abort()
 
   " highlight errors
   exe 'match ' . g:vorax_output_window_hl_error . ' /^\(ORA-\|SP[0-9]\?-\).*/'
 
   " ESC for cancelling the currently executing statement
   exe 'nnoremap <buffer> <silent>' . g:vorax_output_abort_key . ' :VORAXOutputAbort<CR>'
+
+  " Oradoc keymap
+  nnoremap <buffer> <silent> K :call vorax#oradoc#Search(expand('<cWORD>'))<CR>
 
 endfunction " }}}
 
