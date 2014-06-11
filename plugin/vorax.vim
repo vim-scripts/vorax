@@ -3,7 +3,7 @@
 " Description: An Oracle IDE for Geeks
 " License:     see LICENSE.txt
 
-let g:vorax_version = "4.3.3"
+let g:vorax_version = "4.3.31"
 
 if exists("g:loaded_vorax") || &cp
   finish
@@ -66,8 +66,10 @@ call s:initVariable('g:vorax_output_full_heading', 0)
 "   2 = pagezip
 "   3 = tablezip
 call s:initVariable('g:vorax_output_window_default_funnel', 0)
+call s:initVariable('g:vorax_output_show_open_txn', 0)
+call s:initVariable('g:vorax_output_txn_marker', 'TXN')
 call s:initVariable('g:vorax_debug', 0)
-call s:initVariable('g:vorax_throbber', ['|', '\', '-', '/'])
+call s:initVariable('g:vorax_throbber', ['|', '/', '-', '*', '\'])
 call s:initVariable('g:vorax_sqlplus_options', 
       \ ['set tab off',
       \  'set appinfo "VoraX"',
@@ -101,6 +103,7 @@ call s:initVariable('g:vorax_omni_force_upcase_const', 1)
 call s:initVariable('g:vorax_omni_sort_items', 0)
 call s:initVariable('g:vorax_omni_cache', ['SYS'])
 call s:initVariable('g:vorax_omni_too_many_items_warn_delay', 500)
+call s:initVariable('g:vorax_omni_output_window_items', 1)
 
 " The format for xplan
 call s:initVariable('g:vorax_xplan_format', 'ALLSTATS LAST')
@@ -185,6 +188,7 @@ command! -n=0 VORAXScratch :call vorax#toolkit#NewSqlScratch()
 command! -n=1 -complete=file VORAXDocBooks :call vorax#oradoc#Books(<q-args>)
 command! -n=1 -complete=file VORAXDocIndex :call vorax#oradoc#CreateIndex(<q-args>)
 command! -n=* -complete=file VORAXDocSearch :call vorax#oradoc#Search(<f-args>)
+command! -n=+ -complete=customlist,vorax#explorer#NewDbComplete VORAXNew :call vorax#explorer#NewDbObject(<f-args>)
 
 " }}}
 
@@ -211,6 +215,9 @@ hi User2 term=standout cterm=standout ctermfg=4 gui=reverse guifg=#268bd2
 
 " throbber color
 hi User3 term=standout cterm=standout ctermfg=5 gui=reverse guifg=#d33682
+
+" transaction indicator
+hi User4 term=standout cterm=standout ctermfg=9 gui=reverse guifg=#cb4b16
 
 "}}}
 

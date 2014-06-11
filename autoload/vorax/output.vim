@@ -30,6 +30,7 @@ function! vorax#output#Open() abort " {{{
       silent! exec "buffer " . s:name
     else
       exec winnr . 'wincmd w'
+      return
     endif
   endif
 
@@ -138,6 +139,9 @@ endfunction " }}}
 
 function! vorax#output#PostSpit() abort "{{{
   call vorax#sqlplus#UpdateSessionOwner()
+  if g:vorax_output_show_open_txn
+    call vorax#sqlplus#UpdateTransaction()
+  endif
   " update dbexplorer
   call vorax#explorer#RefreshRoot()
   call vorax#output#Open()
@@ -145,7 +149,18 @@ function! vorax#output#PostSpit() abort "{{{
     exe "normal! " . s:current_line . 'G'
   endif
   if !g:vorax_output_window_sticky_cursor
-    exe s:originating_window.'wincmd w'
+    if s:originating_window != winnr()
+      " Needed when here from the CursorHold event. An autoevent
+      " is not trigger from another event, so the BufLeave au
+      " will not be triggered.
+
+      " update visible bounds
+      call vorax#output#SetVisibleBounds()
+      " disable cursorline
+      setlocal nocursorline
+
+      exe s:originating_window.'wincmd w'
+    endif
   endif
 endfunction "}}}
 
@@ -172,12 +187,14 @@ function! vorax#output#FetchAndSpit() abort " {{{
       redraw
     else
       let chunk = vorax#ruby#SqlplusReadOutput(s:read_chunk_size)
-      call vorax#output#Spit(chunk)
+      if chunk != ""
+        call vorax#output#Spit(chunk)
+      endif
       " visual feedback to the user please
       redraw
     endif
     let s:first_chunk = 0
-    call feedkeys("f\e")
+    call feedkeys("f\e", 'n')
   catch /^VRX-02/
     call vorax#sqlplus#WarnCrash()
     call vorax#output#SpitterStop()
@@ -255,6 +272,7 @@ endfunction"}}}
 
 function! vorax#output#Abort() abort"{{{
   try
+    let sp_props = vorax#sqlplus#Properties()
     if vorax#ruby#SqlplusIsInitialized() &&
           \ vorax#ruby#SqlplusIsAlive() &&
           \ vorax#ruby#SqlplusBusy()
@@ -265,7 +283,6 @@ function! vorax#output#Abort() abort"{{{
       end
       if cancelled
         " it's a good thing to revert to default options
-        let sp_props = vorax#sqlplus#Properties()
         if filereadable(sp_props['store_set'])
           call vorax#sqlplus#ExecImmediate('@' . sp_props['store_set'])
         endif
@@ -289,6 +306,8 @@ function! vorax#output#Abort() abort"{{{
       " reconnected my ass
       let reconnected = ''
     endif
+    " clear txn flag
+    let sp_props['transaction'] = ''
     call vorax#output#Spit("\n*** Session aborted" . reconnected . "! ***")
     echo
   endtry
@@ -344,7 +363,8 @@ function! vorax#output#StatusLine() abort"{{{
   let limit_rows = (exists('g:vorax_limit_rows') ? ' LIMIT=' . g:vorax_limit_rows : '')
   return throbber .
         \ session_owner . 
-        \ '%= ' . format . 
+        \ '%4*' . props['transaction'] . '%*' .
+        \ '%= ' . format .
         \ col_head .
         \ append .
         \ top .
@@ -362,6 +382,14 @@ function! vorax#output#ToggleLimitRows() "{{{
   else
     unlet g:vorax_limit_rows
   endif
+endfunction "}}}
+
+function! vorax#output#GetBufferName() "{{{
+  return s:name
+endfunction "}}}
+
+function! vorax#output#SetVisibleBounds() "{{{
+  let b:vorax_visible_bounds=[line('w0'), line('w$')]
 endfunction "}}}
 
 function! s:ConfigureBuffer() abort " {{{

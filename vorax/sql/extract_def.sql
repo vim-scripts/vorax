@@ -28,6 +28,10 @@ set define '&'
 set verify off
 set pagesize 0
 set linesize 1000
+set heading off
+set feedback off
+set timing off
+set time off
 
 var ddl_def clob
 var ddl_length number
@@ -49,6 +53,24 @@ declare
       l_text := 'create or replace ' || l_text || chr(10) || '/' || chr(10);
     end if;
     return l_text;
+  end;
+
+  function get_metadata_item(item in varchar2, orauser in varchar2) return clob as
+  begin
+    return dbms_metadata.get_granted_ddl(item, orauser);
+  exception
+    when others then
+      dbms_output.put_line(SQLERRM || ': '|| dbms_utility.format_error_backtrace);
+      return null;
+  end;
+
+  function get_metadata_dependencies(obj_type in varchar2, item in varchar2, orauser in varchar2) return clob as
+  begin
+    return dbms_metadata.get_dependent_ddl(obj_type, item, orauser);
+  exception
+    when others then
+      dbms_output.put_line(SQLERRM || ': '|| dbms_utility.format_error_backtrace);
+      return null;
   end;
 
 begin
@@ -73,6 +95,37 @@ begin
     dbms_metadata.set_transform_param(dbms_metadata.session_transform, 'PRETTY', TRUE);
     -- get and escape the DDL definition. 
     :ddl_def := dbms_metadata.get_ddl('&3', '&2', '&1');
+    -- get grants
+    if '&3' = 'USER' then
+      -- get tablespace quotas
+      :ddl_def := :ddl_def || chr(10) || get_metadata_item('TABLESPACE_QUOTA', '&2');
+      -- get the default role
+      :ddl_def := :ddl_def || chr(10) || get_metadata_item('DEFAULT_ROLE', '&2');
+      -- get role grants
+      :ddl_def := :ddl_def || chr(10) || get_metadata_item('ROLE_GRANT', '&2');
+      -- get system grants
+      :ddl_def := :ddl_def || chr(10) || get_metadata_item('SYSTEM_GRANT', '&2');
+      -- get object grants
+      :ddl_def := :ddl_def || chr(10) || get_metadata_item('OBJECT_GRANT', '&2');
+    elsif '&3'= 'TABLE' then
+      -- indexes not covered by PK and unique constraints
+      for l_rec in (select owner, index_name 
+                      from all_indexes i 
+                     where i.table_owner = '&1' 
+                       and i.table_name = '&2' 
+                       and index_name not in (
+                         select constraint_name 
+                           from all_constraints a 
+                          where a.owner = '&1'
+                            and a.table_name = '&2')) loop
+        :ddl_def := :ddl_def || chr(10) 
+          || dbms_metadata.get_ddl('INDEX', l_rec.index_name, l_rec.owner);
+      end loop;
+    end if;
+    if '&3' = 'TABLE' or '&3' = 'VIEW' or '&3' = 'SEQUENCE' then
+      -- grants
+      :ddl_def := :ddl_def || chr(10) || get_metadata_dependencies('OBJECT_GRANT', '&2', '&1');
+    end if;
   end if;
   :ddl_def := dbms_xmlgen.convert(:ddl_def);
   -- don't bother to get the exact size in bytes. Get the length in chars and
@@ -89,7 +142,8 @@ set longc &clob_len
 set long &clob_len
 
 prompt <table><tr><td>
-print :ddl_def
+select case when nvl(:ddl_length, 0) = 0 then to_clob('')
+       else :ddl_def end from dual;
 prompt </td></tr></table>
 
 undefine clob_len

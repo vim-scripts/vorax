@@ -37,6 +37,20 @@ function! vorax#utils#CurrentStatement(plsql_blocks, sqlplus_commands) abort"{{{
   return stmt['text']
 endfunction"}}}
 
+function! vorax#utils#SelectCurrentStatement() "{{{
+  let stmt = vorax#utils#DescribeCurrentStatement(1, 1)
+  let offset = s:ParseOffset(line('.'), col('.'))
+  if offset > 0
+    let offset = line2byte(offset)
+  endif
+  let start = stmt['position'] + offset + 1
+  let end = start + len(stmt['text']) - 1
+  " select the statement
+  exe 'normal! ' . end . 'gov' . start . 'go'
+  " move to the next non-blank character
+  call search('\S', 'cW')
+endfunction "}}}
+
 function! vorax#utils#AbsolutePosition(line, column) abort"{{{
   if g:vorax_parse_min_lines > 0
     let offset = a:line - g:vorax_parse_min_lines
@@ -324,3 +338,9 @@ function! vorax#utils#IsVoraxManagedFile(file) "{{{
   endif
 endfunction "}}}
 
+function! vorax#utils#WarnBusy() "{{{
+  call vorax#utils#SpitWarn("Sqlplus is busy executing another command.")
+  sleep " wait a sec
+  redraw
+  echo ' '
+endfunction "}}}

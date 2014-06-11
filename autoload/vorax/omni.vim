@@ -13,6 +13,8 @@ function! vorax#omni#Complete(findstart, base) abort "{{{
     call VORAXDebug("vorax#omni#Complete END => context = " . string(s:context))
     return s:context['start_from']
   else
+    let old_lz = &lz
+    set lz
     if s:context.completion_type ==? 'identifier' || s:context.completion_type ==? 'dot'
       " tell me more about the code structure
       let text_code = vorax#utils#BufferContent(1, line('.')) . a:base
@@ -28,24 +30,29 @@ function! vorax#omni#Complete(findstart, base) abort "{{{
               \ 1, 0)
         call vorax#ruby#ComputePlsqlStructure(s:plsql_struct_key, stmt.text)
         let s:context.local_items = vorax#ruby#LocalItems(s:plsql_struct_key, 
-              \ s:context.absolute_pos - 1, '')
+              \ strlen(stmt.text) - 1, '')
       endif
     endif
     let items = []
     let s:context['prefix'] = a:base
-    if s:context['completion_type'] == 'argument'
-      let items = s:ArgumentItems(a:base)
-    elseif s:context['completion_type'] == 'identifier'
-      let items = s:WordItems(a:base)
-    elseif s:context['completion_type'] == 'dot'
-      let items = s:DotItems(a:base)
-    elseif s:context['completion_type'] == 'dblink'
-      let items = s:DbLinksItems(a:base)
-    endif
+    try
+      if s:context['completion_type'] == 'argument'
+        let items = s:ArgumentItems(a:base)
+      elseif s:context['completion_type'] == 'identifier'
+        let items = s:WordItems(a:base)
+      elseif s:context['completion_type'] == 'dot'
+        let items = s:DotItems(a:base)
+      elseif s:context['completion_type'] == 'dblink'
+        let items = s:DbLinksItems(a:base)
+      endif
+    catch /^VRX-03/
+      call vorax#utils#WarnBusy()
+    endtry
     if g:vorax_omni_sort_items
       call sort(items, "s:CompareOmniItems")
     endif
     call VORAXDebug("vorax#omni#Complete END")
+    let &lz=old_lz
     if len(items) > 0
       return items
     else
@@ -143,7 +150,66 @@ function! s:WordItems(prefix) abort "{{{
     endfor
   endif
   call filter(result, 'v:val.word =~ ''^' . vorax#utils#LiteralRegexp(a:prefix) . '''')
+  " add output window items
+  for item in s:OutputWindowWords(a:prefix)
+    call add(result, {'word' : item, 'kind' : 'output'})
+  endfor
   return result
+endfunction "}}}
+
+function! s:AddOutputWord(list, item, prefix) "{{{
+  call add(a:list, a:item)
+  let parts = split(a:item, '\m\W')
+  if len(parts) > 1
+    for part in parts
+      if part =~ '\m^' . vorax#utils#LiteralRegexp(a:prefix)
+        call add(a:list, part)
+      endif
+    endfor
+  endif
+endfunction "}}}
+
+function! s:OutputWindowWords(prefix) "{{{
+  let omni_words = []
+  let output_bufname = vorax#output#GetBufferName()
+  let visible_bounds = getbufvar(output_bufname, 'vorax_visible_bounds')
+  " should be a list and have 2 elements
+  if type(visible_bounds) == 3 && len(visible_bounds) == 2
+
+    " compute the offset in case the output window was resized. We need
+    " to do that because the visible bounds are updated on output window
+    " LostFocus. However, if the output window was resized from another
+    " window these visible bounds are not updated. So, Vorax will also
+    " check the output window hight and if there are differences computes
+    " an offset so that to accomodate with the new window size.
+    "
+    " Note: we could easily move to the output window and get the visible
+    " bounds, but we don't want to move to another window while the 
+    " completion is done.
+    let output_window_nr = bufwinnr(output_bufname)
+    if output_window_nr >= 0
+      let offset = winheight(output_window_nr) - 
+            \ (visible_bounds[1] - visible_bounds[0]) - 1
+    else
+      let offset = 0
+    endif
+
+    let up = visible_bounds[0] - offset
+    if up < 0
+      let up = 0
+    endif
+
+    let visible_output = getbufline(output_bufname, 
+          \ up, 
+          \ visible_bounds[1] + offset)
+    for line in visible_output
+      call substitute(line, 
+            \ '\<' . vorax#utils#LiteralRegexp(a:prefix) . '[^ ]*\>', 
+            \ '\=s:AddOutputWord(omni_words, submatch(0), a:prefix)' , 
+            \ 'g')
+    endfor
+  endif
+  return omni_words
 endfunction "}}}
 
 function! s:ShortLocalName(name)"{{{
@@ -482,9 +548,8 @@ function! s:LocalItems() abort "{{{
   let result = {'resultset' : [[]]}
   let crr_pos = s:context['absolute_pos']
     
-  let items = vorax#ruby#LocalItems(s:plsql_struct_key, crr_pos-1, '')
   let args = []
-  for item in items
+  for item in s:context['local_items']
     if item["item_type"] == 'ForVariable'
       let rec = [item['variable'], item['variable'], '', '']
     elseif has_key(item, 'name')

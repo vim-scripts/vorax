@@ -33,6 +33,17 @@ let s:base_categories = [
 " Registered plugins
 let s:plugins = []
 
+function! vorax#explorer#NewDbComplete(arglead, cmdline, crrpos)
+  let parts = split(strpart(a:cmdline, 0, a:crrpos), '\s\+', 1)
+  if len(parts) == 2
+    " completion for object type
+    let object_types = map(copy(s:base_categories), 'v:val.object_type')
+    call extend(object_types, ['PACKAGE_SPEC', 'PACKAGE_BODY', 
+          \ 'TYPE_SPEC', 'TYPE_BODY'])
+    return filter(object_types, "v:val =~? '^" . a:arglead . "'")
+  endif
+endfunction
+
 function! vorax#explorer#OpenDbComplete(arglead, cmdline, crrpos) "{{{
   let parts = split(strpart(a:cmdline, 0, a:crrpos), '\s\+', 1)
   if len(parts) == 2
@@ -113,7 +124,7 @@ function! vorax#explorer#OpenDbObject(bang, ...) "{{{
       let content = rs[0][0]
       if vorax#utils#IsEmpty(content)
         redraw
-        call vorax#utils#SpitWarn('Sorry, the definition is empty! No such database object?')
+        call vorax#utils#SpitWarn('Sorry, the definition is empty! No such database object or no rights to get the definition?')
         return
       endif
       call s:OpenVoraxBuffer(file_name)
@@ -128,7 +139,38 @@ function! vorax#explorer#OpenDbObject(bang, ...) "{{{
         endif
       endif
       call append(0, split(content, '\n'))
-      normal! gg
+      if type != 'PROCEDURE' &&
+            \ type != 'FUNCTION' &&
+            \ type != 'PACKAGE' &&
+            \ type != 'PACKAGE_BODY' &&
+            \ type != 'PACKAGE_SPEC' &&
+            \ type != 'TYPE' &&
+            \ type != 'TYPE_BODY' &&
+            \ type != 'TYPE_SPEC' &&
+            \ type != 'JAVA_SOURCE' &&
+            \ type != 'TRIGGER'
+        " format buffer if it's not a procedural module
+        silent! retab
+        silent! normal! =gg
+      else
+        normal! gg
+      endif
+    endif
+  endif
+endfunction "}}}
+
+function! vorax#explorer#NewDbObject(type, ...) "{{{
+  if exists('a:1')
+    let object = a:1
+  else
+    let object = input('Object name: ')
+  endif
+  if !vorax#utils#IsEmpty(object)
+    let buffer_name = s:BufferName(a:type, object) 
+    call s:OpenVoraxBuffer(buffer_name)
+    if exists('*VORAXAfterNewDbObject')
+      " Execute hook
+      call VORAXAfterNewDbObject(a:type, object)
     endif
   endif
 endfunction "}}}

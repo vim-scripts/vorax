@@ -157,6 +157,7 @@ function! s:GetStmtStarterIndent( keyword, curr_lnum )
     exec 'normal! ^'
     let stmts = '^\s*\%('.
           \ '\<begin\>\|' .
+          \ '\<while\>\|' .
           \ '\%(\%(\<end\s\+\)\@<!\<loop\>\)\|' .
           \ '\%(\%(\<end\s\+\)\@<!\<case\>\)\|' .
           \ '\%(\%(\<end\s\+\)\@<!\<for\>\)\|' .
@@ -171,13 +172,15 @@ function! s:GetStmtStarterIndent( keyword, curr_lnum )
   elseif a:keyword =~? 'exception'
     exec 'normal! 0'
     let stmts = '^\s*\%('.
-          \ '\<end\>\|' .
-          \ '\<begin\>' .
+          \ '\<begin\>\|' .
+          \ '\%(\%(\<end\s\+\)\@<!\<loop\>\)\|' .
+          \ '\%(\%(\<end\s\+\)\@<!\<case\>\)\|' .
+          \ '\%(\%(\<end\s\+\)\@<!\<for\>\)\|' .
+          \ '\%(\%(\<end\s\+\)\@<!\<if\>\)'.
           \ '\)'
-    let matching_lnum = searchpair(stmts, '', '\<exception\>\s*', 'bW',
+    let matching_lnum = searchpair(stmts, '', '\<end\>\zs', 'bW',
           \ 's:IsColComment(line("."), col(".")) == 1')
     exec 'normal! $'
-    " echom 'exception: matching_lnum='.matching_lnum
     if matching_lnum > 0 && matching_lnum < a:curr_lnum
       if getline(matching_lnum) =~ '^\s*\<end\>\s*;'
         let ind = indent(matching_lnum) - &sw
@@ -322,7 +325,7 @@ function! GetVoraxSQLIndent()
     " Move indent in
     let ind = ind + &sw
     " echom 'prevl - SQLBlockStart - indent ' . ind . '  line: ' . prevline
-  elseif prevline =~ '\s\+\(\<as\>\|\<is\>\)'
+  elseif prevline =~ '\s\+\(\<as\>\|\<is\>\)\s*$'
     "functions baby
     let ind = ind + &sw
   elseif prevline =~ '[()]'
